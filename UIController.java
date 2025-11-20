@@ -9,6 +9,7 @@ import java.awt.event.WindowEvent;
 
 // For Graphics
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 
@@ -34,13 +35,14 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     private boolean searching;
     private final int spacing = 12; // spacing between buttons
     private final int buttonHeight = 35; // height (and width) of buttons
-    private final int driveHeight = 30; // height of drives shown in drive area
-    private final int fileHeight = 15; // height of files shown in file area
+    private final int driveHeight = 25; // height of drives shown in drive area
+    private final int fileHeight = 20; // height of files shown in file area
     private final int fileSpacing = 7; // spacing between files and drives in their respective areas
     private final Color topPanelColor = new Color(255, 238, 176);
     private final Color mainPanelColor = new Color(255, 246, 212);
+    private final Color fileClickedColor = new Color(206, 231, 240);
     private boolean clickingBack, clickingSearch, clickingRefresh, clickingUpdate, clickingDrive, clickingFile;
-    int clickRelativePositionInList;
+    int clickRelativePositionInDriveList, clickRelativePositionInFileList;
 
     // application specific objects
     private DBManager database;
@@ -88,7 +90,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         window.addMouseListener(this);
 
         // constant update to window
-        clock = new Timer(1000,this);
+        clock = new Timer(10,this);
         clock.start();
 
         // create window sections
@@ -125,6 +127,8 @@ public class UIController extends JPanel implements ActionListener, MouseListene
 
     private void render(Graphics g)
     {
+        int fontSize = 16;
+        g.setFont(new Font("Arial", Font.PLAIN, fontSize));
         g.setColor(topPanelColor);
         g.fillRect(0, 0, window.getWidth(), spacing*2 + buttonHeight);
 
@@ -138,14 +142,44 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         g.drawLine(0, spacing*2 + buttonHeight, window.getWidth(), spacing*2 + buttonHeight);
         g.drawLine(spacing*2 + (int)driveArea.getWidth(), spacing*2 + buttonHeight, spacing*2 + (int)driveArea.getWidth(), window.getHeight());
 
-        g.fillRect((int)driveArea.getX(), (int)driveArea.getY(), (int)driveArea.getWidth(), (int)driveArea.getHeight());
-        g.fillRect((int)fileArea.getX(), (int)fileArea.getY(), (int)fileArea.getWidth(), (int)fileArea.getHeight());
+        //g.fillRect((int)driveArea.getX(), (int)driveArea.getY(), (int)driveArea.getWidth(), (int)driveArea.getHeight());
+        //g.fillRect((int)fileArea.getX(), (int)fileArea.getY(), (int)fileArea.getWidth(), (int)fileArea.getHeight());
 
-        g.setColor(Color.blue);
+        // display the drives
+        g.setColor(Color.black);
         for(int step = 0; step < 6; step++)
         {
-            g.fillRect((int)driveArea.getX(), (int)driveArea.getY() + step*(driveHeight + fileSpacing), (int)driveArea.getWidth(), driveHeight);
+            if(clickRelativePositionInDriveList == step)
+            {
+                g.setColor(fileClickedColor);
+                g.fillRect((int)driveArea.getX(), (int)driveArea.getY() + step*(driveHeight + fileSpacing), (int)driveArea.getWidth(), driveHeight);
+                g.setColor(Color.black);
+            }
+            g.drawString("ugga bugga", (int)driveArea.getX(), (int)driveArea.getY() + fontSize + step*(driveHeight + fileSpacing));
         }
+
+        fontSize = 14;
+        g.setFont(new Font("Arial", Font.PLAIN, fontSize));
+        // display the files
+        if(searching)
+        {
+            // display search results
+        }
+        else
+        {
+            // otherwise display files in the folder given in the path
+            for(int step = 0; step < 25; step++)
+            {
+                if(clickRelativePositionInFileList == step)
+                {
+                    g.setColor(fileClickedColor);
+                    g.fillRect((int)fileArea.getX(), (int)fileArea.getY() + step*(fileHeight + fileSpacing), (int)fileArea.getWidth(), fileHeight);
+                    g.setColor(Color.black);
+                }
+                g.drawString("many long file \t many long very much path yes \t maybe some other info", (int)fileArea.getX(), (int)fileArea.getY() + fontSize + step*(fileHeight + fileSpacing));
+            }
+        }
+        
     }
 
     private void resizeWindow()
@@ -200,8 +234,14 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             clickingDrive = true;
 
             // calculates which drive (relative position)
-            clickRelativePositionInList = (int)((actualMousePosition.getY() - (int)driveArea.getY()) / (driveHeight + fileSpacing));
-            System.out.println(clickRelativePositionInList);
+            clickRelativePositionInDriveList = (int)((actualMousePosition.getY() - (int)driveArea.getY()) / (driveHeight + fileSpacing));
+            // accounts for space under the drive option
+            if((int)actualMousePosition.getY() > (int)driveArea.getY() + (clickRelativePositionInDriveList)*(driveHeight + fileSpacing) + driveHeight)
+            {
+                // clicked too low, no drive
+                clickRelativePositionInDriveList = -1;
+            }
+            System.out.println(clickRelativePositionInDriveList);
         }
         else if(fileArea.contains(actualMousePosition))
         {
@@ -209,7 +249,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             clickingFile = true;
 
             // calculates which file (relative position)
-            clickRelativePositionInList = (int)((actualMousePosition.getY() - (int)fileArea.getY()) / (fileHeight + fileSpacing));
+            clickRelativePositionInFileList = (int)((actualMousePosition.getY() - (int)fileArea.getY()) / (fileHeight + fileSpacing));
         }
     }
 
@@ -253,11 +293,11 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             // since the initial drive selection did not take into account the spacing beneath the drive, now we do
             // use a checking method rather than recalculating the position
             int holdMouseYPos = (int)actualMousePosition.getY();
-            int holdTopPosDrive = (int)(driveArea.getY() + clickRelativePositionInList*(driveHeight + fileSpacing));
+            int holdTopPosDrive = (int)(driveArea.getY() + clickRelativePositionInDriveList*(driveHeight + fileSpacing));
             if(holdMouseYPos >= holdTopPosDrive && holdMouseYPos <= (holdTopPosDrive + driveHeight))
             {
                 // indeed have clicked on a drive
-                System.out.println("Truly clicked on drive: " + clickRelativePositionInList);
+                System.out.println("Truly clicked on drive: " + clickRelativePositionInDriveList);
                 searching = false;
             }
             
@@ -268,11 +308,11 @@ public class UIController extends JPanel implements ActionListener, MouseListene
 
             // the calculations are done the exact same way as done for checking the drive area (see above)
             int holdMouseYPos = (int)actualMousePosition.getY();
-            int holdTopPosFile = (int)(fileArea.getY() + clickRelativePositionInList*(fileHeight + fileSpacing));
+            int holdTopPosFile = (int)(fileArea.getY() + clickRelativePositionInFileList*(fileHeight + fileSpacing));
             if(holdMouseYPos >= holdTopPosFile && holdMouseYPos <= (holdTopPosFile + fileHeight))
             {
                 // indeed have clicked on a file
-                System.out.println("Truly clicked on file: " + clickRelativePositionInList);
+                System.out.println("Truly clicked on file: " + clickRelativePositionInFileList);
             }
         }
 
@@ -299,7 +339,8 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         clickingDrive = false;
         clickingFile = false;
 
-        clickRelativePositionInList = -1;
+        clickRelativePositionInDriveList = -1;
+        clickRelativePositionInFileList = -1;
     }
     
     public void mouseClicked(MouseEvent e) {}
