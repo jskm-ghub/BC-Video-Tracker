@@ -6,7 +6,7 @@ public class MainApp {
 
     public MainApp() {              
         dbManager = new DBManager(); //Initializes database manager and connect to DB
-        dbManager.connect(); 
+        // dbManager.connect(); // unhandled exception here
 
         driveScanner = new DriveScanner();  //Initializes drive scanner
 
