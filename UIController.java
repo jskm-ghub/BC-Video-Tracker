@@ -56,11 +56,6 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     Rectangle backButton, pathBar, searchBar, refreshButton, updateButton, fileArea, driveArea;
     String searchBarText;
 
-    public static void main(String[] args)
-    {
-        UIController test = new UIController();
-    }
-
     public UIController(DBManager dbm, DriveScanner ds)
     {
         this.database = dbm;
