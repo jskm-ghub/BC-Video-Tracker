@@ -4,6 +4,9 @@
 # System files
 .DS_Store
 
+# Nathanael's run file
+run.bat
+
 # Log file
 *.log
 
