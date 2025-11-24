@@ -17,13 +17,20 @@ public class DBManager{
      private static final String USER = "nico3528";
      private static final String PASSWORD = "ZanLuc2117729?";
 
+     // Server details
      String remoteHost = "127.0.0.1"; // MySQL host from server perspective
      int remotePort = 22;             // MySQL port on server
      int localForwardPort = 3307;     // Local port for SSH tunnel
 
+     // Connection objects
      Session session;         // SSH session
      ChannelSftp channelSftp; // Connection to the server
      Connection connection;   // Connection to the database
+
+     // Database details
+     String dbName = "test_db"; // Database being used
+     String dbUser = "root"; // ssh: mysql -u root -p
+     String dbPassword = "Benedictine";
 
      /**
       * Calls all connection methods
@@ -34,7 +41,6 @@ public class DBManager{
           startSession();
           connectSFTP();
           connectDB();
-          this.insertDrive(null);
 
           return true;
      }
@@ -88,9 +94,6 @@ public class DBManager{
           if (connection != null && !connection.isClosed()) return; // already connected
 
           System.out.println("Connecting to database...");
-          String dbName = "videoschema_db";
-          String dbUser = "root"; // ssh: mysql -u root -p
-          String dbPassword = "Benedictine";
           String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
                + "?useSSL=false"
                + "&connectTimeout=5000"
@@ -111,10 +114,27 @@ public class DBManager{
           return null;
      }
 
+     /**
+      * Inserts a drive into the database
+      * Data is retrieved from the Drive object passed in
+      * @param drive Drive object to insert
+      * @return String confirmation message
+      * @throws SQLException
+      */
      public String insertDrive(Drive drive) throws SQLException {
-          String schema = connection.getSchema();
-          System.out.println("DB Schema: " + schema);
-          return null;
+          int id = 1;
+          String driveName = drive.getDisplayName();
+          String serialName = drive.getSerialName();
+          String sql = "INSERT INTO drive (id, driveName, serialName) VALUES (?, ?, ?)";
+          PreparedStatement stmt = connection.prepareStatement(sql);
+
+          stmt.setString(1, id);
+          stmt.setString(2, driveName);
+          stmt.setString(3, serialName);
+
+          int rows = stmt.executeUpdate();
+          
+          return "Inserted rows: " + rows;
      }
 
      public void closeConnection() throws Exception{
@@ -134,7 +154,12 @@ public class DBManager{
           return null;
      }
 
-     public List<FileItem> getFiles(Drive d){
+     public List<FileItem> getFiles(Drive d) throws SQLException{
+          try{
+
+          }catch(Exception e){
+               e.printStackTrace();
+          }
           return null;
      }
 
