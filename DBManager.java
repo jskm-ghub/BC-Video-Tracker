@@ -1,3 +1,4 @@
+// Java Libraries
 import java.sql.*;
 import java.util.*;
 import java.util.Properties;
@@ -5,14 +6,12 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+// External Libraries
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.ChannelSftp;
 
-/**
- * Populate DB with test data
- * 
- */
+
 public class DBManager{
      private static final String HOST = "bc-marketingvideotracker.benedictine.edu";
      private static final String USER = "nico3528";
@@ -25,8 +24,12 @@ public class DBManager{
      Session session;         // SSH session
      ChannelSftp channelSftp; // Connection to the server
      Connection connection;   // Connection to the database
-     //DriveScanner ds;
 
+     /**
+      * Calls all connection methods
+      * @return true if connections are successful
+      * @throws Exception
+      */
      public boolean connect() throws Exception{
           startSession();
           connectSFTP();
@@ -34,52 +37,6 @@ public class DBManager{
           this.insertDrive(null);
 
           return true;
-     }
-
-     private void connectDB() throws SQLException {
-          if (connection != null && !connection.isClosed()) return; // already connected
-
-          System.out.println("Connecting to database...");
-          String dbName = "videoschema_db";
-          String dbUser = "root"; // ssh: mysql -u root -p
-          String dbPassword = "Benedictine";
-          String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
-               + "?useSSL=false"
-               + "&connectTimeout=5000"
-               + "&socketTimeout=5000";
-
-          try {
-               connection = DriverManager.getConnection(dburl, dbUser, dbPassword);
-               System.out.println("Database connected: " + (connection != null && !connection.isClosed()));
-          } catch (SQLException e) {
-               System.out.println("SQLState: " + e.getSQLState());
-               System.out.println("ErrorCode: " + e.getErrorCode());
-               System.out.println("Message: " + e.getMessage());
-               e.printStackTrace();
-          }
-     }
-
-     /**
-      * Establishes SFTP connection to the remote server
-      * Channel is stored in the 'channelSftp' field
-      * Could be of possible use for file stuff in future, 
-      * Not required for SSH or DB connection, may later remove
-      * @throws Exception
-      */
-     private void connectSFTP() throws Exception{
-          // Secured File Transfer Protocol (SFTP) channel
-          channelSftp = (ChannelSftp) session.openChannel("sftp");
-          channelSftp.connect();
-
-          // System.out.println("SFTP Channel created, reading test file:");
-          // String filePath = "/srv/test.txt";
-          // InputStream inputStream = channelSftp.get(filePath);
-          // BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-          // String line;
-          // while ((line = reader.readLine()) != null) {
-          //      System.out.println(line);
-          // }
-          // reader.close();
      }
      
      /**
@@ -106,6 +63,48 @@ public class DBManager{
           int assignedPort = session.setPortForwardingL(localForwardPort, remoteHost, 3306);
           //System.out.println("SSH tunnel established on localhost: " + assignedPort);
           System.out.println("SSH connected: " + session.isConnected());
+     }
+
+     /**
+      * Establishes SFTP connection to the remote server
+      * Channel is stored in the 'channelSftp' field
+      * Could be of possible use for file stuff in future, 
+      * Not required for SSH or DB connection, may later remove
+      * @throws Exception
+      */
+     private void connectSFTP() throws Exception{
+          // Secured File Transfer Protocol (SFTP) channel
+          channelSftp = (ChannelSftp) session.openChannel("sftp");
+          channelSftp.connect();
+     }
+
+     /**
+      * Establishes a connection to the database through the SSH tunnel
+      * Connection is stored in the 'connection' field
+      * Currently set to use root user
+      * @throws SQLException
+      */
+     private void connectDB() throws SQLException {
+          if (connection != null && !connection.isClosed()) return; // already connected
+
+          System.out.println("Connecting to database...");
+          String dbName = "videoschema_db";
+          String dbUser = "root"; // ssh: mysql -u root -p
+          String dbPassword = "Benedictine";
+          String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
+               + "?useSSL=false"
+               + "&connectTimeout=5000"
+               + "&socketTimeout=5000";
+
+          try {
+               connection = DriverManager.getConnection(dburl, dbUser, dbPassword);
+               System.out.println("Database connected: " + (connection != null && !connection.isClosed()));
+          } catch (SQLException e) {
+               System.out.println("SQLState: " + e.getSQLState());
+               System.out.println("ErrorCode: " + e.getErrorCode());
+               System.out.println("Message: " + e.getMessage());
+               e.printStackTrace();
+          }
      }
 
      public List<Drive> getDrives(){
