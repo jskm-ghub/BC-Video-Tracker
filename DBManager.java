@@ -18,30 +18,68 @@ public class DBManager{
      private static final String USER = "nico3528";
      private static final String PASSWORD = "ZanLuc2117729?";
 
-     Session session; // SSH session
+     String remoteHost = "127.0.0.1"; // MySQL host from server perspective
+     int remotePort = 22;             // MySQL port on server
+     int localForwardPort = 3307;     // Local port for SSH tunnel
+
+     Session session;         // SSH session
      ChannelSftp channelSftp; // Connection to the server
-     Connection connection; // Connection to the database
+     Connection connection;   // Connection to the database
      //DriveScanner ds;
 
      public boolean connect() throws Exception{
           startSession();
+          connectSFTP();
+          connectDB();
+          this.insertDrive(null);
 
+          return true;
+     }
+
+     private void connectDB() throws SQLException {
+          if (connection != null && !connection.isClosed()) return; // already connected
+
+          System.out.println("Connecting to database...");
+          String dbName = "videoschema_db";
+          String dbUser = "root"; // ssh: mysql -u root -p
+          String dbPassword = "Benedictine";
+          String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
+               + "?useSSL=false"
+               + "&connectTimeout=5000"
+               + "&socketTimeout=5000";
+
+          try {
+               connection = DriverManager.getConnection(dburl, dbUser, dbPassword);
+               System.out.println("Database connected: " + (connection != null && !connection.isClosed()));
+          } catch (SQLException e) {
+               System.out.println("SQLState: " + e.getSQLState());
+               System.out.println("ErrorCode: " + e.getErrorCode());
+               System.out.println("Message: " + e.getMessage());
+               e.printStackTrace();
+          }
+     }
+
+     /**
+      * Establishes SFTP connection to the remote server
+      * Channel is stored in the 'channelSftp' field
+      * Could be of possible use for file stuff in future, 
+      * Not required for SSH or DB connection, may later remove
+      * @throws Exception
+      */
+     private void connectSFTP() throws Exception{
           // Secured File Transfer Protocol (SFTP) channel
           channelSftp = (ChannelSftp) session.openChannel("sftp");
           channelSftp.connect();
 
-          System.out.println("SFTP Channel created, reading test file:");
-          String filePath = "/srv/test.txt";
-          InputStream inputStream = channelSftp.get(filePath);
-          BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-          String line;
-          while ((line = reader.readLine()) != null) {
-               System.out.println(line);
-          }
-          reader.close();
-
-          closeConnection();
-          return true;
+          // System.out.println("SFTP Channel created, reading test file:");
+          // String filePath = "/srv/test.txt";
+          // InputStream inputStream = channelSftp.get(filePath);
+          // BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+          // String line;
+          // while ((line = reader.readLine()) != null) {
+          //      System.out.println(line);
+          // }
+          // reader.close();
      }
      
      /**
@@ -51,9 +89,6 @@ public class DBManager{
       */
      private void startSession() throws Exception {
           if (session != null && session.isConnected()) return; // already up
-          String remoteHost = "127.0.0.1"; // MySQL host from server perspective
-          int remotePort = 22;           // MySQL port on server
-          int localPort = 3307;            // Local port for SSH tunnel
           
           // Set up JSch session and 'Log in'
           JSch jsch = new JSch();
@@ -67,17 +102,19 @@ public class DBManager{
 
           System.out.println("Connecting SSH...");
           session.connect();
-          System.out.println("SSH connected.");
 
-          int assignedPort = session.setPortForwardingL(localPort, remoteHost, remotePort);
-          System.out.println("SSH tunnel established on localhost: " + assignedPort);
+          int assignedPort = session.setPortForwardingL(localForwardPort, remoteHost, 3306);
+          //System.out.println("SSH tunnel established on localhost: " + assignedPort);
+          System.out.println("SSH connected: " + session.isConnected());
      }
 
      public List<Drive> getDrives(){
           return null;
      }
 
-     public String insertDrive(Drive drive){
+     public String insertDrive(Drive drive) throws SQLException {
+          String schema = connection.getSchema();
+          System.out.println("DB Schema: " + schema);
           return null;
      }
 
