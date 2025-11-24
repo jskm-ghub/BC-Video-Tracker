@@ -33,3 +33,10 @@ replay_pid*
 #    Future use, should contain clutter or sensitive
 #    material generated through use of SSH or MySQL,
 #    such as passwords, keys, etc.
+
+# Gradle caches and outputs
+.gradle/
+build/
+
+# VS Code settings
+.vscode/

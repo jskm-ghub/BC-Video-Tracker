@@ -1,7 +1,12 @@
 import java.sql.*;
 import java.util.*;
+import com.jcraft.jsch.*;
 
 
+/**
+ * Populate DB with test data
+ * 
+ */
 public class DBManager{
      private static final String URL = "";
      private static final String USER = "";
