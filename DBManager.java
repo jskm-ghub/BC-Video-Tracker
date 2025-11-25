@@ -35,7 +35,6 @@ public class DBManager{
      /**
       * Calls all connection methods
       * @return true if connections are successful
-      * @throws Exception
       */
      public boolean connect(){
           startSession();
@@ -48,7 +47,6 @@ public class DBManager{
      /**
       * Establishes an SSH tunnel to the remote database server
       * Session is stored in the 'session' field
-      * @throws Exception
       */
      private void startSession() {
           if (session != null && session.isConnected()) return; // already up
@@ -79,7 +77,6 @@ public class DBManager{
       * Channel is stored in the 'channelSftp' field
       * Could be of possible use for file stuff in future, 
       * Not required for SSH or DB connection, may later remove
-      * @throws Exception
       */
      private void connectSFTP() {
           try{
@@ -95,7 +92,6 @@ public class DBManager{
       * Establishes a connection to the database through the SSH tunnel
       * Connection is stored in the 'connection' field
       * Currently set to use root user
-      * @throws SQLException
       */
      private void connectDB() {
           try {
@@ -115,8 +111,30 @@ public class DBManager{
           }
      }
 
+     /**
+      * Retrieves a list of all drives from the database
+      * @return List of Drive objects
+      */
      public List<Drive> getDrives(){
-          return null;
+          List<Drive> drives = new ArrayList<>();
+          try{
+               String sql = "SELECT * FROM drive";
+               PreparedStatement stmt = connection.prepareStatement(sql);
+               ResultSet rs = stmt.executeQuery();
+
+               while(rs.next()){
+                    int id = rs.getInt("id");
+                    String driveName = rs.getString("driveName");
+                    String serialName = rs.getString("serialName");
+
+                    // Drive d = new Drive(driveName, serialName);
+                    // drives.add(d);
+                    System.out.println("ID: " + id + " | Name: " + driveName + " | Serial: " + serialName);
+               }
+          }catch(Exception e){
+               e.printStackTrace();
+          }
+          return drives;
      }
 
      /**
@@ -124,7 +142,6 @@ public class DBManager{
       * Data is retrieved from the Drive object passed in
       * @param drive Drive object to insert
       * @return String confirmation message
-      * @throws SQLException
       */
      public String insertDrive(Drive drive) {
           int rows = 1;
@@ -146,7 +163,7 @@ public class DBManager{
           return "Inserted rows: " + rows;
      }
 
-     public void closeConnection() throws Exception{
+     public void closeConnection(){
           try{
                if(connection != null && !connection.isClosed()){
                     connection.close();
