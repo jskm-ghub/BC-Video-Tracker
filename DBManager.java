@@ -37,7 +37,7 @@ public class DBManager{
       * @return true if connections are successful
       * @throws Exception
       */
-     public boolean connect() throws Exception{
+     public boolean connect(){
           startSession();
           connectSFTP();
           connectDB();
@@ -50,25 +50,28 @@ public class DBManager{
       * Session is stored in the 'session' field
       * @throws Exception
       */
-     private void startSession() throws Exception {
+     private void startSession() {
           if (session != null && session.isConnected()) return; // already up
           
-          // Set up JSch session and 'Log in'
-          JSch jsch = new JSch();
-          session = jsch.getSession(USER, HOST, remotePort);
-          session.setPassword(PASSWORD);
+          try{
+               // Set up JSch session and 'Log in'
+               JSch jsch = new JSch();
+               session = jsch.getSession(USER, HOST, remotePort);
+               session.setPassword(PASSWORD);
 
-          Properties config = new Properties();
-          // For development; in production you’d handle host keys properly
-          config.put("StrictHostKeyChecking", "no");
-          session.setConfig(config);
+               Properties config = new Properties();
+               // For development; in production you’d handle host keys properly
+               config.put("StrictHostKeyChecking", "no");
+               session.setConfig(config);
 
-          System.out.println("Connecting SSH...");
-          session.connect();
-
-          int assignedPort = session.setPortForwardingL(localForwardPort, remoteHost, 3306);
-          //System.out.println("SSH tunnel established on localhost: " + assignedPort);
-          System.out.println("SSH connected: " + session.isConnected());
+               System.out.println("Connecting SSH...");
+               session.connect();
+               int assignedPort = session.setPortForwardingL(localForwardPort, remoteHost, 3306);
+               //System.out.println("SSH tunnel established on localhost: " + assignedPort);
+               System.out.println("SSH connected: " + session.isConnected());
+          }catch(Exception e){
+               e.printStackTrace();
+          }
      }
 
      /**
@@ -78,10 +81,14 @@ public class DBManager{
       * Not required for SSH or DB connection, may later remove
       * @throws Exception
       */
-     private void connectSFTP() throws Exception{
-          // Secured File Transfer Protocol (SFTP) channel
-          channelSftp = (ChannelSftp) session.openChannel("sftp");
-          channelSftp.connect();
+     private void connectSFTP() {
+          try{
+               // Secured File Transfer Protocol (SFTP) channel
+               channelSftp = (ChannelSftp) session.openChannel("sftp");
+               channelSftp.connect();
+          }catch(Exception e){
+               e.printStackTrace();
+          }
      }
 
      /**
@@ -90,16 +97,14 @@ public class DBManager{
       * Currently set to use root user
       * @throws SQLException
       */
-     private void connectDB() throws SQLException {
-          if (connection != null && !connection.isClosed()) return; // already connected
-
-          System.out.println("Connecting to database...");
-          String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
-               + "?useSSL=false"
-               + "&connectTimeout=5000"
-               + "&socketTimeout=5000";
-
+     private void connectDB() {
           try {
+               if (connection != null && !connection.isClosed()) return; // already connected
+               System.out.println("Connecting to database...");
+               String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
+                    + "?useSSL=false"
+                    + "&connectTimeout=5000"
+                    + "&socketTimeout=5000";
                connection = DriverManager.getConnection(dburl, dbUser, dbPassword);
                System.out.println("Database connected: " + (connection != null && !connection.isClosed()));
           } catch (SQLException e) {
@@ -121,19 +126,23 @@ public class DBManager{
       * @return String confirmation message
       * @throws SQLException
       */
-     public String insertDrive(Drive drive) throws SQLException {
-          int id = 1;
-          String driveName = drive.getDisplayName();
-          String serialName = drive.getSerialName();
-          String sql = "INSERT INTO drive (id, driveName, serialName) VALUES (?, ?, ?)";
-          PreparedStatement stmt = connection.prepareStatement(sql);
+     public String insertDrive(Drive drive) {
+          int rows = 1;
+          try{
+               int id = 1;
+               String driveName = drive.getDisplayName();
+               String serialName = drive.getSerialName();
+               String sql = "INSERT INTO drive (id, driveName, serialName) VALUES (?, ?, ?)";
+               PreparedStatement stmt = connection.prepareStatement(sql);
 
-          stmt.setString(1, id);
-          stmt.setString(2, driveName);
-          stmt.setString(3, serialName);
+               stmt.setInt(1, id);
+               stmt.setString(2, driveName);
+               stmt.setString(3, serialName);
 
-          int rows = stmt.executeUpdate();
-          
+               rows = stmt.executeUpdate();
+          }catch(Exception e){
+               e.printStackTrace();
+          }
           return "Inserted rows: " + rows;
      }
 
@@ -150,17 +159,23 @@ public class DBManager{
           System.out.println("Connections closed.");
      }
 
-     public List<FileItem> getFiles(Drive d, FileItem f){
-          return null;
-     }
+     public List<FileItem> getFiles(Drive d, FileItem f) {
+          List<FileItem> files = new ArrayList<>();
 
-     public List<FileItem> getFiles(Drive d) throws SQLException{
           try{
 
           }catch(Exception e){
                e.printStackTrace();
           }
-          return null;
+
+          return files;
+     }
+
+     public List<FileItem> getFiles(Drive d) {
+          List<FileItem> files = new ArrayList<>();
+
+          
+          return files;
      }
 
      public List<FileItem> getSearchResults(String query){
