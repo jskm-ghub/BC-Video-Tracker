@@ -13,10 +13,18 @@ public class Drive {
     private String driveSerialName;
     private String driveDisplayName;
 
+    public Drive(String serialName, String displayName) {
+        driveSerialName = serialName;
+        driveDisplayName = displayName;
+    }
     public String getSerialName() {
         return this.driveSerialName;
     }
     public String getDisplayName() {
         return this.driveDisplayName;
+    }
+    //may be needed if someone renames the drive (if supported)
+    public void setDisplayName(String displayName) {
+        driveDisplayName = displayName;
     }
 }
