@@ -1,5 +1,6 @@
 // For the Display Window
 import javax.swing.JPanel;
+import javax.sound.midi.SysexMessage;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.Timer;
@@ -90,7 +91,8 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             @Override
             public void windowClosing(WindowEvent e)
             {
-                System.out.println("closing now");
+                // TODO: anything else need to be done on shutdown?
+                database.closeConnection();
                 window.dispose();
                 System.exit(0);
             }
@@ -116,11 +118,9 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         resizeWindow();
 
         // initialize specific variables
-        searchBarText = "";
-        pathText = "";
         listDrives = dbm.getDrives();
-        listFiles = new ArrayList<FileItem>();
         path = new Stack<FileItem>();
+        resetToHome();
 
         // checks where we are clicking
         resetClick();
@@ -197,29 +197,47 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             g.drawImage(updateButtonImage, (int)updateButton.getX(), (int)updateButton.getY(), (int)updateButton.getWidth(), (int)updateButton.getHeight(), null);
         }
 
-        // display the drives
-        for(int step = 0; step < 6; step++)
+        // display the path and search bar
+        if(searching)
         {
-            if(clickRelativePositionInDriveList == step)
-            {
-                g.setColor(fileClickedColor);
-                g.fillRect((int)driveArea.getX(), (int)driveArea.getY() + step*(driveHeight + fileSpacing), (int)driveArea.getWidth(), driveHeight);
-                g.setColor(Color.black);
-            }
-            g.drawString("ugga bugga", (int)driveArea.getX(), (int)driveArea.getY() + fontSize + step*(driveHeight + fileSpacing));
+            g.drawString("[searching for files]", (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - fontSize) / 3 + fontSize);
+            g.drawString(searchBarText, (int)searchBar.getX() + fileSpacing, (int)searchBar.getY() + ((int)searchBar.getHeight() - fontSize) / 3 + fontSize);
         }
+        else
+        {
+            if(pathText.isEmpty())
+            {
+                g.drawString("[click on a drive to begin]", (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - fontSize) / 3 + fontSize);
+            }
+            else
+            {
+                g.drawString(pathText, (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - fontSize) / 3 + fontSize);
+            }
+            g.drawString("[click to search]", (int)searchBar.getX() + fileSpacing, (int)searchBar.getY() + ((int)searchBar.getHeight() - fontSize) / 3 + fontSize);
+        }
+
+        // display the drives
+        if(!(listDrives == null))
+        {
+            for(int step = 0; step < listDrives.size(); step++)
+            {
+                if(clickRelativePositionInDriveList == step)
+                {
+                    g.setColor(fileClickedColor);
+                    g.fillRect((int)driveArea.getX(), (int)driveArea.getY() + step*(driveHeight + fileSpacing), (int)driveArea.getWidth(), driveHeight);
+                    g.setColor(Color.black);
+                }
+                g.drawString(listDrives.get(step).getDisplayName(), (int)driveArea.getX(), (int)driveArea.getY() + fontSize + step*(driveHeight + fileSpacing));
+            }
+        }
+        
 
         fontSize = 14;
         g.setFont(new Font("Arial", Font.PLAIN, fontSize));
         // display the files
-        if(searching)
+        if(!(listFiles == null))
         {
-            // display search results
-        }
-        else
-        {
-            // otherwise display files in the folder given in the path
-            for(int step = 0; step < 25; step++)
+            for(int step = 0; step < listFiles.size(); step++)
             {
                 if(clickRelativePositionInFileList == step)
                 {
@@ -227,10 +245,11 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                     g.fillRect((int)fileArea.getX(), (int)fileArea.getY() + step*(fileHeight + fileSpacing), (int)fileArea.getWidth(), fileHeight);
                     g.setColor(Color.black);
                 }
-                g.drawString("many long file \t many long very much path yes \t maybe some other info", (int)fileArea.getX(), (int)fileArea.getY() + fontSize + step*(fileHeight + fileSpacing));
+                g.drawString(listFiles.get(step).getName() + "          Path -> " + listFiles.get(step).getPath(), (int)fileArea.getX(), (int)fileArea.getY() + fontSize + step*(fileHeight + fileSpacing));
             }
         }
-        
+        g.setColor(Color.blue);
+        g.fillRect(50, 50, 3, 3);
     }
 
     private void resizeWindow()
@@ -258,14 +277,14 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     public void mousePressed(MouseEvent e)
     {
         /* marks where the user clicked, but does not perform the action -> action taken when the mouse is released */
+        System.out.println(e.getPoint());
 
         // adjusts for the fact that the mouse at (0,0) on screen is (7,30) when printed
         Point actualMousePosition = new Point(e.getX() - 7, e.getY() - 30);
 
-        if(!searching && backButton.contains(actualMousePosition))
+        if(backButton.contains(actualMousePosition))
         {
             // clicking back button
-            // back button disabled during search
             clickingBack = true;
         }
         else if(searchBar.contains(actualMousePosition))
@@ -276,7 +295,6 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         else if(refreshButton.contains(actualMousePosition))
         {
             // user wants to refresh connection to database
-            // TODO: what happens when we are searching?
             clickingRefresh = true;
         }
         else if(updateButton.contains(actualMousePosition))
@@ -297,9 +315,8 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 // clicked too low, no drive
                 clickRelativePositionInDriveList = -1;
             }
-            System.out.println(clickRelativePositionInDriveList);
         }
-        else if(fileArea.contains(actualMousePosition))
+        else if(!searching && fileArea.contains(actualMousePosition))
         {
             // user clicking on a file
             clickingFile = true;
@@ -327,22 +344,29 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         if(clickingBack && backButton.contains(actualMousePosition))
         {
             // back button clicked
-            System.out.println("clicked back");
-            if(!path.isEmpty())
+            if(searching)
             {
-                path.pop();
+                resetToHome();
+            }
+            else
+            {
+                if(!path.isEmpty())
+                {
+                    path.pop();
 
-                // pull the last folder off the path
-                if(path.isEmpty())
-                {
-                    pathText = currentDrive + " : ";
-                }
-                else
-                {
-                    pathText = pathText.substring(0, pathText.length()-2);
-                    pathText = pathText.substring(0, pathText.lastIndexOf("/") + 1);
+                    // pull the last folder off the path
+                    if(path.isEmpty())
+                    {
+                        pathText = currentDrive.getDisplayName() + " : ";
+                    }
+                    else
+                    {
+                        pathText = pathText.substring(0, pathText.length()-2);
+                        pathText = pathText.substring(0, pathText.lastIndexOf("/") + 1);
+                    }
                 }
             }
+            
         }
         else if(clickingSearch && searchBar.contains(actualMousePosition))
         {
@@ -352,15 +376,33 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         else if(clickingRefresh && refreshButton.contains(actualMousePosition))
         {
             // refreshing connection to database
+            int refresh = JOptionPane.showConfirmDialog(null, "Refresh Connection to Database?\n(this will take you back to [Select Drive])", "Refresh Database Connection", JOptionPane.OK_CANCEL_OPTION);
+            if(refresh == JOptionPane.OK_OPTION)
+            {
+                listDrives = database.getDrives();
+                resetToHome();
+            }
         }
         else if(clickingUpdate && updateButton.contains(actualMousePosition))
         {
             // handles clicking the update button
-            int updateDB = JOptionPane.showConfirmDialog(null, "Confirm Update to Database with Drive ()?", "Update Database", JOptionPane.YES_NO_OPTION);
-            if (updateDB == JOptionPane.YES_OPTION)
+            if(driveScanner.detectDrives())
             {
-                System.out.println("User chose Yes.");
+                // TODO: 
+                // need to know what drive we're dealing with
+                // then confirm update with that drive
+                int updateDB = JOptionPane.showConfirmDialog(null, "Confirm Update to Database with Drive ()?", "Update Database", JOptionPane.YES_NO_OPTION);
+                if (updateDB == JOptionPane.YES_OPTION)
+                {
+                    System.out.println("User chose Yes.");
+                }
             }
+            else
+            {
+                // no drive detected
+                JOptionPane.showMessageDialog(null, "Error: Could not detect any hard drives connected");
+            }
+            
         }
         else if(clickingDrive && driveArea.contains(actualMousePosition))
         {
@@ -374,8 +416,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             if(holdMouseYPos >= holdTopPosDrive && holdMouseYPos <= (holdTopPosDrive + driveHeight))
             {
                 // indeed have clicked on a drive
-                System.out.println("Truly clicked on drive: " + clickRelativePositionInDriveList);
-                if(clickRelativePositionInDriveList >= 0 && clickRelativePositionInDriveList < listDrives.size())
+                if(clickRelativePositionInDriveList >= 0 && !(listDrives == null) && clickRelativePositionInDriveList < listDrives.size())
                 {
                     // actually clicked on a drive that exists
                     currentDrive = listDrives.get(clickRelativePositionInDriveList);
@@ -384,6 +425,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                     pathText = currentDrive.getDisplayName() + " : ";
                 }
                 searching = false;
+                searchBarText = "";
             }
             
         }
@@ -397,8 +439,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             if(holdMouseYPos >= holdTopPosFile && holdMouseYPos <= (holdTopPosFile + fileHeight))
             {
                 // indeed have clicked on a file
-                System.out.println("Truly clicked on file: " + clickRelativePositionInFileList);
-                if(clickRelativePositionInFileList >= 0 && clickRelativePositionInFileList < listFiles.size())
+                if(clickRelativePositionInFileList >= 0 && !(listFiles == null) && clickRelativePositionInFileList < listFiles.size())
                 {
                     // actually clicked a file that exists
                     FileItem holdFile = listFiles.get(clickRelativePositionInFileList);
@@ -419,10 +460,30 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     public void keyPressed(KeyEvent e)
     {
         // handle keyboard input
-        System.out.println("pressed: " + e.getKeyCode());
+        int key = e.getKeyCode();
         if(searching)
         {
-            
+            if(key == 10)
+            {
+                // searching now (enter)
+                listFiles = database.getSearchResults(searchBarText);
+            }
+            else if(key >= 32 && key <= 126)
+            {
+                // normal input
+                // TODO: ok that single and double quote, along with tilde thing and backwards quote not being able to be pressed is ok?
+                searchBarText += e.getKeyChar();
+            }
+            else if(key == 8 && searchBarText.length() > 0)
+            {
+                // backspace
+                searchBarText = searchBarText.substring(0, searchBarText.length()-1);
+            }
+            else if(key == 27)
+            {
+                // escape
+                resetToHome();
+            }
         }
     }
 
@@ -437,6 +498,16 @@ public class UIController extends JPanel implements ActionListener, MouseListene
 
         clickRelativePositionInDriveList = -1;
         clickRelativePositionInFileList = -1;
+    }
+
+    public void resetToHome()
+    {
+        currentDrive = null;
+        path.clear();
+        pathText = "";
+        searchBarText = "";
+        listFiles = null;
+        searching = false;
     }
     
     public void mouseClicked(MouseEvent e){}
