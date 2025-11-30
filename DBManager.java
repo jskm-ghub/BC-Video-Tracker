@@ -163,6 +163,9 @@ public class DBManager{
           return "Inserted rows: " + rows;
      }
 
+     /**
+      * Closes all open connections
+      */
      public void closeConnection(){
           try{
                if(connection != null && !connection.isClosed()){
@@ -176,11 +179,33 @@ public class DBManager{
           System.out.println("Connections closed.");
      }
 
+     /**
+      * Retrieves a list of FileItems from the database for a 
+      * given Drive and parent FileItem (directory)
+      * @param d Drive object
+      * @param f Parent FileItem object
+      * @return List of FileItem objects
+      */
      public List<FileItem> getFiles(Drive d, FileItem f) {
           List<FileItem> files = new ArrayList<>();
 
           try{
+               String sql = "SELECT * FROM fileitem WHERE driveId = ? AND parentId = ?";
+               PreparedStatement stmt = connection.prepareStatement(sql);
+               stmt.setInt(1, d.getId());
+               stmt.setInt(2, f.getId());
+               ResultSet rs = stmt.executeQuery();
 
+               while(rs.next()){
+                    int id = rs.getInt("id");
+                    String fileName = rs.getString("fileName");
+                    String filePath = rs.getString("filePath");
+                    int parentId = rs.getInt("parentId");
+                    int driveId = rs.getInt("driveId");
+
+                    FileItem fileItem = new FileItem(fileName, filePath, parentId, driveId);
+                    files.add(fileItem);
+               }
           }catch(Exception e){
                e.printStackTrace();
           }
@@ -188,9 +213,31 @@ public class DBManager{
           return files;
      }
 
+     /**
+      * Retrieves a list of FileItems from the database for a 
+      * given Drive
+      * @param d Drive object
+      * @return List of FileItem objects
+      */
      public List<FileItem> getFiles(Drive d) {
           List<FileItem> files = new ArrayList<>();
 
+          try{
+               String sql = "SELECT * FROM fileitem WHERE driveId = ?";
+               PreparedStatement stmt = connection.prepareStatement(sql);
+               stmt.setInt(1, d.getId());
+               ResultSet rs = stmt.executeQuery();
+
+               while(rs.next()){
+                    int id = rs.getInt("id");
+                    String fileName = rs.getString("fileName");
+                    String filePath = rs.getString("filePath");
+                    int parentId = rs.getInt("parentId");
+                    int driveId = rs.getInt("driveId");
+
+                    FileItem fileItem = new FileItem(fileName, filePath, parentId, driveId);
+                    files.add(fileItem);
+               }
           
           return files;
      }
