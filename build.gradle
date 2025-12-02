@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    // Where Gradle looks for libraries
+    mavenCentral()
+}
+
+dependencies {
+    // JSCH from Maven Central – NO manual download needed
+    implementation 'com.jcraft:jsch:0.1.55'  // JSch for SSH tunneling
+    implementation 'mysql:mysql-connector-java:8.0.33'   // MySQL JDBC driver
+    //implementation files('jsch-0.1.55.jar')
+}
+
+// Tell Gradle that our .java files are directly in the project root
+sourceSets {
+    main {
+        java {
+            srcDirs = ['.']
+        }
+    }
+    test {
+        java {
+            srcDirs = []
+        }
+    }
+}
+
+// Tell Gradle which class has main()
+application {
+    // If your main class is just `public class Main { ... }` with NO package:
+    mainClass = 'MainApp'
+}
