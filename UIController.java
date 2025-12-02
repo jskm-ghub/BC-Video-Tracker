@@ -423,11 +423,10 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                     listFiles = database.getFiles(currentDrive);
                     path.clear();
                     pathText = currentDrive.getDisplayName() + " : ";
+                    searching = false;
+                    searchBarText = "";
                 }
-                searching = false;
-                searchBarText = "";
             }
-            
         }
         else if(clickingFile && fileArea.contains(actualMousePosition))
         {
