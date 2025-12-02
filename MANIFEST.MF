@@ -1,2 +1,2 @@
 Main-Class: MainApp
-Class-Path: ./jsch-0.1.55.jar
+Class-Path: ./src/lib/jsch-0.1.55.jar
