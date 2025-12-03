@@ -1,3 +1,6 @@
+// javac -cp "src/lib/*" -d out src/java/*.java
+// java -cp "out:src/lib/*" MainApp
+
 // Java Libraries
 import java.sql.*;
 import java.util.*;
