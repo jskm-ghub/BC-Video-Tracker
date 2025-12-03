@@ -127,11 +127,11 @@ public class DBManager{
 
                while(rs.next()){
                     int id = rs.getInt("driveId");
-                    String driveName = rs.getString("driveName");
-                    String serialName = rs.getString("serialName");
+                    String serialName = rs.getString("driveSerialName");
+                    String driveName = rs.getString("driveDisplayName");
 
-                    // Drive d = new Drive(driveName, serialName);
-                    // drives.add(d);
+                    Drive d = new Drive(driveName, serialName);
+                    drives.add(d);
                     System.out.println("ID: " + id + " | Name: " + driveName + " | Serial: " + serialName);
                }
           }catch(Exception e){
@@ -152,7 +152,7 @@ public class DBManager{
                int id = 1;
                String driveName = drive.getDisplayName();
                String serialName = drive.getSerialName();
-               String sql = "INSERT INTO drive (id, driveName, serialName) VALUES (?, ?, ?)";
+               String sql = "INSERT INTO drive (id, driveSerialName, driveDisplayName) VALUES (?, ?, ?)";
                PreparedStatement stmt = connection.prepareStatement(sql);
 
                stmt.setInt(1, id);
@@ -194,7 +194,7 @@ public class DBManager{
 
           try{
                // query to get drive ID first
-               String sql = "SELECT driveId FROM drive WHERE serialName = ?";
+               String sql = "SELECT driveId FROM drive WHERE driveSerialName = ?";
                PreparedStatement query = connection.prepareStatement(sql);
                query.setString(1, d.getSerialName());
                ResultSet rs = query.executeQuery();
@@ -237,7 +237,7 @@ public class DBManager{
 
           try{
                // query to get drive ID first
-               String sql = "SELECT driveId FROM drive WHERE serialName = ?";
+               String sql = "SELECT driveId FROM drive WHERE driveSerialName = ?";
                PreparedStatement query = connection.prepareStatement(sql);
                query.setString(1, d.getSerialName());
                ResultSet rs = query.executeQuery();
