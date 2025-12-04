@@ -83,6 +83,23 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         this.database = dbm;
         this.driveScanner = ds;
 
+        // create window sections - buttons, fields, file and drive areas
+        backButton = new Rectangle();
+        pathBar = new Rectangle();
+        searchBar = new Rectangle();
+        refreshButton = new Rectangle();
+        updateButton = new Rectangle();
+        fileArea = new Rectangle();
+        driveArea = new Rectangle();
+
+        // initialize specific variables
+        listDrives = dbm.getDrives();
+        path = new Stack<FileItem>();
+        resetToHome();
+
+        // checks where we are clicking
+        resetClick();
+
         // creates window
         window = new JFrame();
         window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -100,30 +117,17 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         );
         window.setVisible(true);
         window.setSize(842,500);
-        window.add(this);
+        window.add(this); // that is, the JPanel
         this.setBackground(mainPanelColor);
-
-        // listens to mouse and keyboard
-        window.addKeyListener(this);
-        window.addMouseListener(this);
-
-        // create window sections - buttons, fields, file and drive areas
-        backButton = new Rectangle();
-        pathBar = new Rectangle();
-        searchBar = new Rectangle();
-        refreshButton = new Rectangle();
-        updateButton = new Rectangle();
-        fileArea = new Rectangle();
-        driveArea = new Rectangle();
         resizeWindow();
 
-        // initialize specific variables
-        listDrives = dbm.getDrives();
-        path = new Stack<FileItem>();
-        resetToHome();
+        // listens to mouse and keyboard
+        addKeyListener(this);
+        addMouseListener(this);
 
-        // checks where we are clicking
-        resetClick();
+        // important for key listener
+        setFocusable(true);
+        requestFocusInWindow();
 
         // constant update to window
         clock = new Timer(10,this);
@@ -134,7 +138,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     public void actionPerformed(ActionEvent e)
     {
         // TODO: maybe not repaint every time?
-        window.repaint();
+        this.repaint();
     }
 
     @Override
@@ -153,7 +157,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
 
         // draw top panel
         g.setColor(topPanelColor);
-        g.fillRect(0, 0, window.getWidth(), spacing*2 + buttonHeight);
+        g.fillRect(0, 0, this.getWidth(), spacing*2 + buttonHeight);
         
         // draw text fields
         g.setColor(fieldBackgroundColor);
@@ -164,8 +168,8 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         g.setColor(Color.black);
         g.drawRect((int)pathBar.getX(), (int)pathBar.getY(), (int)pathBar.getWidth(), (int)pathBar.getHeight());
         g.drawRect((int)searchBar.getX(), (int)searchBar.getY(), (int)searchBar.getWidth(), (int)searchBar.getHeight());
-        g.drawLine(0, spacing*2 + buttonHeight, window.getWidth(), spacing*2 + buttonHeight);
-        g.drawLine(spacing*2 + (int)driveArea.getWidth(), spacing*2 + buttonHeight, spacing*2 + (int)driveArea.getWidth(), window.getHeight());
+        g.drawLine(0, spacing*2 + buttonHeight, this.getWidth(), spacing*2 + buttonHeight);
+        g.drawLine(spacing*2 + (int)driveArea.getWidth(), spacing*2 + buttonHeight, spacing*2 + (int)driveArea.getWidth(), this.getHeight());
 
         // back button
         if(clickingBack)
@@ -248,15 +252,12 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 g.drawString(listFiles.get(step).getName() + "          Path -> " + listFiles.get(step).getPath(), (int)fileArea.getX(), (int)fileArea.getY() + fontSize + step*(fileHeight + fileSpacing));
             }
         }
-        g.setColor(Color.blue);
-        g.fillRect(50, 50, 3, 3);
     }
 
     private void resizeWindow()
     {
-        // constant value adjust due to window thinking it bigger than it actually is
-        int windowHeight = window.getHeight() - 35;
-        int windowWidth = window.getWidth() - 12;
+        int windowHeight = getHeight();
+        int windowWidth = getWidth();
 
         // cubit defined to divide width by a percentage
         double cubit = (windowWidth - (buttonHeight*3 + spacing*6)) / 128.0;
@@ -277,10 +278,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     public void mousePressed(MouseEvent e)
     {
         /* marks where the user clicked, but does not perform the action -> action taken when the mouse is released */
-        System.out.println(e.getPoint());
-
-        // adjusts for the fact that the mouse at (0,0) on screen is (7,30) when printed
-        Point actualMousePosition = new Point(e.getX() - 7, e.getY() - 30);
+        Point actualMousePosition = e.getPoint();
 
         if(backButton.contains(actualMousePosition))
         {
@@ -337,9 +335,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     public void mouseReleased(MouseEvent e)
     {
         /* upon release of the mouse, given that it is over the same section of screen that it began its click on, take action */
-
-        // adjusts for the fact that the mouse at (0,0) on screen is (7,30) when printed
-        Point actualMousePosition = new Point(e.getX() - 7, e.getY() - 30);
+        Point actualMousePosition = e.getPoint();
 
         if(clickingBack && backButton.contains(actualMousePosition))
         {
