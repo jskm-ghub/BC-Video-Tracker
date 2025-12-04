@@ -200,13 +200,15 @@ public class DBManager{
                query.setString(1, d.getSerialName());
                ResultSet rs = query.executeQuery();
 
+               rs.next();
                int driveId = rs.getInt("driveID");
 
                // query to get files with driveId and parentId (directory)
-               sql = "SELECT * FROM fileitem WHERE driveID = ? AND parentID = ?";
+               sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID = ?";
                query = connection.prepareStatement(sql);
                query.setInt(1, driveId);
                query.setInt(2, f.getParentID());
+               System.out.println("Parent ID: " + f.getParentID());
                rs = query.executeQuery();
 
                while(rs.next()){
@@ -249,7 +251,7 @@ public class DBManager{
                System.out.println("DRIVE ID: " + driveId);
 
                // query to get files under driveId
-               sql = "SELECT * FROM fileItem WHERE driveID = ?";
+               sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID IS NULL";
                query = connection.prepareStatement(sql);
                query.setInt(1, driveId);
                rs = query.executeQuery();
