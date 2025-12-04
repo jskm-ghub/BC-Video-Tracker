@@ -127,11 +127,11 @@ public class DBManager{
                ResultSet rs = query.executeQuery();
 
                while(rs.next()){
-                    int id = rs.getInt("driveId");
+                    int id = rs.getInt("driveID");
                     String serialName = rs.getString("driveSerialName");
                     String driveName = rs.getString("driveDisplayName");
 
-                    Drive d = new Drive(driveName, serialName);
+                    Drive d = new Drive(serialName, driveName);
                     drives.add(d);
                     System.out.println("ID: " + id + " | Name: " + driveName + " | Serial: " + serialName);
                }
@@ -153,7 +153,7 @@ public class DBManager{
                int id = 1;
                String driveName = drive.getDisplayName();
                String serialName = drive.getSerialName();
-               String sql = "INSERT INTO drive (driveId, driveSerialName, driveDisplayName) VALUES (?, ?, ?)";
+               String sql = "INSERT INTO drive (driveID, driveSerialName, driveDisplayName) VALUES (?, ?, ?)";
                PreparedStatement stmt = connection.prepareStatement(sql);
 
                stmt.setInt(1, id);
@@ -195,25 +195,25 @@ public class DBManager{
 
           try{
                // query to get drive ID first
-               String sql = "SELECT driveId FROM drive WHERE driveSerialName = ?";
+               String sql = "SELECT driveID FROM drive WHERE driveSerialName = ?";
                PreparedStatement query = connection.prepareStatement(sql);
                query.setString(1, d.getSerialName());
                ResultSet rs = query.executeQuery();
 
-               int driveId = rs.getInt("driveId");
+               int driveId = rs.getInt("driveID");
 
                // query to get files with driveId and parentId (directory)
-               sql = "SELECT * FROM fileitem WHERE driveId = ? AND parentId = ?";
+               sql = "SELECT * FROM fileitem WHERE driveID = ? AND parentID = ?";
                query = connection.prepareStatement(sql);
                query.setInt(1, driveId);
                query.setInt(2, f.getParentID());
                rs = query.executeQuery();
 
                while(rs.next()){
-                    int id = rs.getInt("id");
-                    String fileName = rs.getString("fileName");
-                    String filePath = rs.getString("filePath");
-                    int parentId = rs.getInt("parentId");
+                    int id = rs.getInt("fileID");
+                    String fileName = rs.getString("name");
+                    String filePath = rs.getString("path");
+                    int parentId = rs.getInt("parentID");
                     boolean isFolder = true; //needs amendment
 
                     //int fileID, String name, String path, boolean isFolder, int driveID, int parentID
@@ -238,24 +238,27 @@ public class DBManager{
 
           try{
                // query to get drive ID first
-               String sql = "SELECT driveId FROM drive WHERE driveSerialName = ?";
+               String sql = "SELECT driveID FROM drive WHERE driveSerialName = ?";
                PreparedStatement query = connection.prepareStatement(sql);
                query.setString(1, d.getSerialName());
                ResultSet rs = query.executeQuery();
 
-               int driveId = rs.getInt("driveId");
+               System.out.println("SERIAL: " + d.getSerialName());
+               rs.next();
+               int driveId = rs.getInt("driveID");
+               System.out.println("DRIVE ID: " + driveId);
 
                // query to get files under driveId
-               sql = "SELECT * FROM fileitem WHERE driveId = ?";
+               sql = "SELECT * FROM fileItem WHERE driveID = ?";
                query = connection.prepareStatement(sql);
                query.setInt(1, driveId);
                rs = query.executeQuery();
 
                while(rs.next()){
-                    int id = rs.getInt("id");
-                    String fileName = rs.getString("fileName");
-                    String filePath = rs.getString("filePath");
-                    int parentId = rs.getInt("parentId");
+                    int id = rs.getInt("fileID");
+                    String fileName = rs.getString("name");
+                    String filePath = rs.getString("path");
+                    int parentId = rs.getInt("parentID");
                     boolean isFolder = true; //needs amendment
                                        
                     // int fileID, String name, String path, boolean isFolder, int driveID, int parentID
