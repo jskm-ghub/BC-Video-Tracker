@@ -1,3 +1,18 @@
-javac -cp src/lib/jsch-0.1.55.jar;/src/lib/mysql-connector-j-8.0.33.jar -d src/out src/java/*.java
-jar cfm VideoTrackerApplication.jar MANIFEST.MF -C src/out . -C src/images .
+mkdir build 2>nul
+mkdir build\fat 2>nul
+mkdir build\fat\images 2>nul
+javac -cp "src/lib/jsch-0.1.55.jar;src/lib/mysql-connector-j-8.0.33.jar" -d src/out src/java/*.java
+jar cf build\tempclasses.jar -C src/out .
+
+if not exist "build\fat\com\jcraft\jsch\JSch.class" (
+    jar xf src\lib\jsch-0.1.55.jar -C build/fat
+)
+
+if not exist "build\fat\com\mysql\cj\jdbc\Driver.class" (
+    jar xf src\lib/mysql-connector-j-8.0.33.jar -C build/fat
+)
+
+jar xf build\tempclasses.jar -C build/fat
+robocopy src\images build\fat\images /E /NFL /NDL /NJH /NJS /NC /NS /NP
+jar cfm VideoTrackerApplication.jar MANIFEST.MF -C build/fat .
 java -jar ./VideoTrackerApplication.jar

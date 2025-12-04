@@ -71,12 +71,12 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     private String searchBarText;
     private String pathText;
     // button images
-    private final Image backButtonImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/back_button.png"));
-    private final Image backButtonClickedImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/back_button_clicked.png"));
-    private final Image refreshButtonImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/refresh_button.png"));
-    private final Image refreshButtonClickedImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/refresh_button_clicked.png"));
-    private final Image updateButtonImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/update_button.png"));
-    private final Image updateButtonClickedImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/update_button_clicked.png"));
+    private final Image backButtonImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/back_button.png"));
+    private final Image backButtonClickedImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/back_button_clicked.png"));
+    private final Image refreshButtonImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/refresh_button.png"));
+    private final Image refreshButtonClickedImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/refresh_button_clicked.png"));
+    private final Image updateButtonImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/update_button.png"));
+    private final Image updateButtonClickedImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/update_button_clicked.png"));
 
     public UIController(DBManager dbm, DriveScanner ds)
     {
