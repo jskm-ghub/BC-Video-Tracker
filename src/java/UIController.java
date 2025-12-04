@@ -354,11 +354,13 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                     if(path.isEmpty())
                     {
                         pathText = currentDrive.getDisplayName() + " : ";
+                        listFiles = database.getFiles(currentDrive);
                     }
                     else
                     {
                         pathText = pathText.substring(0, pathText.length()-2);
                         pathText = pathText.substring(0, pathText.lastIndexOf("/") + 1);
+                        listFiles = database.getFiles(currentDrive, path.peek());
                     }
                 }
             }
@@ -438,6 +440,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 {
                     // actually clicked a file that exists
                     FileItem holdFile = listFiles.get(clickRelativePositionInFileList);
+                    System.out.println(holdFile.getName() + " has id of: " + holdFile.getFileID() + " and parent of " + holdFile.getParentID() + " and is folder:" + holdFile.isFolder());
                     if(holdFile.isFolder())
                     {
                         // only folders can truly be entered
