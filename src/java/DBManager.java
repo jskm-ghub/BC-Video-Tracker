@@ -1,5 +1,6 @@
 // javac -cp "src/lib/*" -d out src/java/*.java
 // java -cp "out:src/lib/*" MainApp
+// ./compile-run_MAC.sh
 
 // Java Libraries
 import java.sql.*;
@@ -31,7 +32,7 @@ public class DBManager{
      Connection connection;   // Connection to the database
 
      // Database details
-     String dbName = "test_db"; // Database being used
+     String dbName = "test_db"; // Database being used videoschema_db or test_db
      String dbUser = "root"; // ssh: mysql -u root -p
      String dbPassword = "Benedictine";
 
@@ -152,7 +153,7 @@ public class DBManager{
                int id = 1;
                String driveName = drive.getDisplayName();
                String serialName = drive.getSerialName();
-               String sql = "INSERT INTO drive (id, driveSerialName, driveDisplayName) VALUES (?, ?, ?)";
+               String sql = "INSERT INTO drive (driveId, driveSerialName, driveDisplayName) VALUES (?, ?, ?)";
                PreparedStatement stmt = connection.prepareStatement(sql);
 
                stmt.setInt(1, id);
@@ -213,7 +214,7 @@ public class DBManager{
                     String fileName = rs.getString("fileName");
                     String filePath = rs.getString("filePath");
                     int parentId = rs.getInt("parentId");
-                    boolean isFolder = (parentId == driveId);
+                    boolean isFolder = true; //needs amendment
 
                     //int fileID, String name, String path, boolean isFolder, int driveID, int parentID
                     FileItem fileItem = new FileItem(id, fileName, filePath, isFolder, driveId, parentId);
@@ -255,8 +256,8 @@ public class DBManager{
                     String fileName = rs.getString("fileName");
                     String filePath = rs.getString("filePath");
                     int parentId = rs.getInt("parentId");
-                    boolean isFolder = (parentId == driveId);
-                    
+                    boolean isFolder = true; //needs amendment
+                                       
                     // int fileID, String name, String path, boolean isFolder, int driveID, int parentID
                     // might need to amend filePath and isFolder
                     FileItem fileItem = new FileItem(id, fileName, filePath, isFolder, parentId, driveId);
