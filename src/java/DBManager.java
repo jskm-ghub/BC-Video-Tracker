@@ -133,7 +133,7 @@ public class DBManager{
 
                     Drive d = new Drive(serialName, driveName);
                     drives.add(d);
-                    System.out.println("ID: " + id + " | Name: " + driveName + " | Serial: " + serialName);
+                    //System.out.println("ID: " + id + " | Name: " + driveName + " | Serial: " + serialName);
                }
           }catch(Exception e){
                e.printStackTrace();
@@ -207,8 +207,8 @@ public class DBManager{
                sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID = ?";
                query = connection.prepareStatement(sql);
                query.setInt(1, driveId);
-               query.setInt(2, f.getParentID());
-               System.out.println("Parent ID: " + f.getParentID());
+               query.setInt(2, f.getFileID()); //getID from parent file
+               System.out.println("Displaying files under parent ID: " + f.getFileID());
                rs = query.executeQuery();
 
                while(rs.next()){
