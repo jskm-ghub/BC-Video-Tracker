@@ -13,5 +13,5 @@ fi
 
 jar xf build/tempclasses.jar -C build/fat
 rsync -a --ignore-existing src/images/ build/fat/images/
-jar cfm VideoTracker-FAT.jar MANIFEST.MF -C build/fat .
+jar cfm VideoTrackerApplication.jar MANIFEST.MF -C build/fat .
 java -jar ./VideoTrackerApplication.jar
