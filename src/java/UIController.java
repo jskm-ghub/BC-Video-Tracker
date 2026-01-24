@@ -1,13 +1,9 @@
 // For the Display Window
 import javax.swing.JPanel;
-import javax.sound.midi.SysexMessage;
-import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.Timer;
 import javax.swing.JOptionPane;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowListener;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 
 // For Graphics
 import java.awt.Color;
@@ -29,9 +25,8 @@ import java.awt.Point;
 // Utilities
 import java.util.Stack;
 import java.util.List;
-import java.util.ArrayList;
 
-public class UIController extends JPanel implements ActionListener, MouseListener, KeyListener
+public class UIController extends JPanel implements ActionListener, MouseListener, KeyListener, MouseWheelListener
 {
     /*  ~~~~~ WINDOW MANAGEMENT ~~~~~ */
     private JFrame window;
@@ -47,22 +42,32 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     private final Color mainPanelColor = new Color(255, 246, 212);
     private final Color fileClickedColor = new Color(206, 231, 240);
     private final Color fieldBackgroundColor = new Color(242, 242, 242);
+    // Fonts
+    private final int mainTextFontSize = 16;
+    private final int fileTextFontSize = 14;
+    private final Font mainTextFont = new Font("Arial", Font.PLAIN, mainTextFontSize);
+    private final Font fileTextFont = new Font("Arial", Font.PLAIN, fileTextFontSize);
     // flags
     private boolean clickingBack, clickingSearch, clickingRefresh, clickingUpdate, clickingDrive, clickingFile;
     private boolean screenUpdated;
     private boolean searching;
     // position markers
     private int clickRelativePositionInDriveList, clickRelativePositionInFileList;
+    // scrolling
+    private int scrollDrivePos; // (scrolling Drive area Position) how much scroll to apply to drive section
+    private int scrollFilePos; // (scrolling File area Position) how much scroll to apply to file section
+    private int maxDriveLines; // maximum number of drives possible to display
+    private int maxFileLines; // max number of files possible to display
 
     /* ~~~~~ APPLICATION SPECIFIC OBJECTS ~~~~~ */
     private DBManager database;
     private DriveScanner driveScanner;
 
     /* ~~~~~ FILE NAVIGATION ~~~~~ */
-    private Stack<FileItem> path;
+    private Stack<FileItem> path; // holds the file path in the order that we have descended into the drive
     private Drive currentDrive;
-    private List<Drive> listDrives;
-    private List<FileItem> listFiles;
+    private List<Drive> listDrives; // all the drives in the system
+    private List<FileItem> listFiles; // all the files in whatever drive we are looking at
 
     /* ~~~~~ BUTTONS ~~~~~ */
     // button positions and sizes
@@ -78,6 +83,11 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     private final Image updateButtonImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/update_button.png"));
     private final Image updateButtonClickedImage = Toolkit.getDefaultToolkit().createImage(UIController.class.getResource("/images/update_button_clicked.png"));
 
+    /**
+     * Constructor for the object that controls the entire UI, creates a window, handles user input.
+     * @param dbm handles connection and data transfer for the database
+     * @param ds handles connection and data transfer for the plugged in hard drive
+     */
     public UIController(DBManager dbm, DriveScanner ds)
     {
         this.database = dbm;
@@ -108,6 +118,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             @Override
             public void windowClosing(WindowEvent e)
             {
+                // everything that needs to happen on shutdown
                 // TODO: anything else need to be done on shutdown?
                 database.closeConnection();
                 window.dispose();
@@ -124,6 +135,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         // listens to mouse and keyboard
         addKeyListener(this);
         addMouseListener(this);
+        addMouseWheelListener(this);
 
         // important for key listener
         setFocusable(true);
@@ -134,6 +146,10 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         clock.start();
     }
 
+    /**
+     * The method called by the clock, calls the repaint method
+     * @param e the event to be processed
+     */
     @Override
     public void actionPerformed(ActionEvent e)
     {
@@ -141,6 +157,10 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         this.repaint();
     }
 
+    /**
+     * Handles painting the screen.
+     * @param g the <code>Graphics</code> object to protect
+     */
     @Override
     public void paintComponent(Graphics g)
     {
@@ -150,11 +170,12 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         resizeWindow();
     }
 
+    /**
+     * Handles all objects that should be painted to the screen.
+     * @param g Graphics object
+     */
     private void render(Graphics g)
     {
-        int fontSize = 16;
-        g.setFont(new Font("Arial", Font.PLAIN, fontSize));
-
         // draw top panel
         g.setColor(topPanelColor);
         g.fillRect(0, 0, this.getWidth(), spacing*2 + buttonHeight);
@@ -164,66 +185,50 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         g.fillRect((int)pathBar.getX(), (int)pathBar.getY(), (int)pathBar.getWidth(), (int)pathBar.getHeight());
         g.fillRect((int)searchBar.getX(), (int)searchBar.getY(), (int)searchBar.getWidth(), (int)searchBar.getHeight());
         
-        // outlines and lines
+        // draw outlines and lines
         g.setColor(Color.black);
         g.drawRect((int)pathBar.getX(), (int)pathBar.getY(), (int)pathBar.getWidth(), (int)pathBar.getHeight());
         g.drawRect((int)searchBar.getX(), (int)searchBar.getY(), (int)searchBar.getWidth(), (int)searchBar.getHeight());
         g.drawLine(0, spacing*2 + buttonHeight, this.getWidth(), spacing*2 + buttonHeight);
         g.drawLine(spacing*2 + (int)driveArea.getWidth(), spacing*2 + buttonHeight, spacing*2 + (int)driveArea.getWidth(), this.getHeight());
 
-        // back button
-        if(clickingBack)
-        {
-            g.drawImage(backButtonClickedImage, (int)backButton.getX(), (int)backButton.getY(), (int)backButton.getWidth(), (int)backButton.getHeight(), null);
-        }
-        else
-        {
-            g.drawImage(backButtonImage, (int)backButton.getX(), (int)backButton.getY(), (int)backButton.getWidth(), (int)backButton.getHeight(), null);
-        }
+        // back, refresh, and update buttons - clicked or unclicked versions depending on reality
+        g.drawImage((clickingBack) ? backButtonClickedImage : backButtonImage, (int)backButton.getX(), (int)backButton.getY(), (int)backButton.getWidth(), (int)backButton.getHeight(), null);
+        g.drawImage((clickingRefresh) ? refreshButtonClickedImage:refreshButtonImage, (int)refreshButton.getX(), (int)refreshButton.getY(), (int)refreshButton.getWidth(), (int)refreshButton.getHeight(), null);
+        g.drawImage((clickingUpdate) ? updateButtonClickedImage : updateButtonImage, (int)updateButton.getX(), (int)updateButton.getY(), (int)updateButton.getWidth(), (int)updateButton.getHeight(), null);
 
-        // refresh button
-        if(clickingRefresh)
-        {
-            g.drawImage(refreshButtonClickedImage, (int)refreshButton.getX(), (int)refreshButton.getY(), (int)refreshButton.getWidth(), (int)refreshButton.getHeight(), null);
-        }
-        else
-        {
-            g.drawImage(refreshButtonImage, (int)refreshButton.getX(), (int)refreshButton.getY(), (int)refreshButton.getWidth(), (int)refreshButton.getHeight(), null);
-        }
-        
-        // update button
-        if(clickingUpdate)
-        {
-            g.drawImage(updateButtonClickedImage, (int)updateButton.getX(), (int)updateButton.getY(), (int)updateButton.getWidth(), (int)updateButton.getHeight(), null);
-        }
-        else
-        {
-            g.drawImage(updateButtonImage, (int)updateButton.getX(), (int)updateButton.getY(), (int)updateButton.getWidth(), (int)updateButton.getHeight(), null);
-        }
+        // set font
+        g.setFont(mainTextFont);
 
         // display the path and search bar
         if(searching)
         {
-            g.drawString("[searching for files]", (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - fontSize) / 3 + fontSize);
-            g.drawString(searchBarText, (int)searchBar.getX() + fileSpacing, (int)searchBar.getY() + ((int)searchBar.getHeight() - fontSize) / 3 + fontSize);
+            g.drawString("[searching for files]", (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - mainTextFontSize) / 3 + mainTextFontSize);
+            // display what we are searching
+            g.drawString(searchBarText, (int)searchBar.getX() + fileSpacing, (int)searchBar.getY() + ((int)searchBar.getHeight() - mainTextFontSize) / 3 + mainTextFontSize);
         }
         else
         {
             if(pathText.isEmpty())
             {
-                g.drawString("[click on a drive to begin]", (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - fontSize) / 3 + fontSize);
+                g.drawString("[click on a drive to begin]", (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - mainTextFontSize) / 3 + mainTextFontSize);
             }
             else
             {
-                g.drawString(pathText, (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - fontSize) / 3 + fontSize);
+                // display actual path
+                g.drawString(getTruncatedString(pathText, (int)pathBar.getWidth() - spacing*2, g), (int)pathBar.getX() + fileSpacing, (int)pathBar.getY() + ((int)pathBar.getHeight() - mainTextFontSize) / 3 + mainTextFontSize);
             }
-            g.drawString("[click to search]", (int)searchBar.getX() + fileSpacing, (int)searchBar.getY() + ((int)searchBar.getHeight() - fontSize) / 3 + fontSize);
+            g.drawString("[click to search]", (int)searchBar.getX() + fileSpacing, (int)searchBar.getY() + ((int)searchBar.getHeight() - mainTextFontSize) / 3 + mainTextFontSize);
         }
 
         // display the drives
         if(!(listDrives == null))
         {
-            for(int step = 0; step < listDrives.size(); step++)
+            // need to store the value of the scroll in a local variable so it doesn't change mid-calculation
+            int localScrollDrivePos = adjustScrollInBounds(scrollDrivePos, listDrives.size(), maxDriveLines);
+            scrollDrivePos = localScrollDrivePos;
+
+            for(int step = 0; step < maxDriveLines && step < listDrives.size(); step++)
             {
                 if(clickRelativePositionInDriveList == step)
                 {
@@ -231,29 +236,86 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                     g.fillRect((int)driveArea.getX(), (int)driveArea.getY() + step*(driveHeight + fileSpacing), (int)driveArea.getWidth(), driveHeight);
                     g.setColor(Color.black);
                 }
-                g.drawString(listDrives.get(step).getDisplayName(), (int)driveArea.getX(), (int)driveArea.getY() + fontSize + step*(driveHeight + fileSpacing));
-            }
-        }
-        
 
-        fontSize = 14;
-        g.setFont(new Font("Arial", Font.PLAIN, fontSize));
+                // truncate the drive name down if needed
+                g.drawString(getTruncatedString(listDrives.get(step + localScrollDrivePos).getDisplayName(), (int)driveArea.getWidth(), g), (int)driveArea.getX(), (int)driveArea.getY() + mainTextFontSize + step*(driveHeight + fileSpacing));
+            }
+        } else {scrollDrivePos = 0;}
+
+        // set font for file area
+        g.setFont(fileTextFont);
+
         // display the files
         if(!(listFiles == null))
         {
-            for(int step = 0; step < listFiles.size(); step++)
+            // sets how wide we allow the file name to be
+            int fileNameWidth = (int) (.6 * driveArea.getWidth());
+
+            // need to store the value of the scroll in a local variable so it doesn't change mid-calculation
+            int localScrollFilePos = adjustScrollInBounds(scrollFilePos, listFiles.size(), maxFileLines);
+            scrollFilePos = localScrollFilePos;
+
+            for(int step = 0; step < maxFileLines && step < listFiles.size(); step++)
             {
                 if(clickRelativePositionInFileList == step)
                 {
+                    // highlights a file if it was clicked
                     g.setColor(fileClickedColor);
-                    g.fillRect((int)fileArea.getX(), (int)fileArea.getY() + step*(fileHeight + fileSpacing), (int)fileArea.getWidth(), fileHeight);
+                    g.fillRect((int) fileArea.getX(), (int) fileArea.getY() + step * (fileHeight + fileSpacing), (int) fileArea.getWidth(), fileHeight);
                     g.setColor(Color.black);
                 }
-                g.drawString(listFiles.get(step).getName() + "          Path -> " + listFiles.get(step).getPath(), (int)fileArea.getX(), (int)fileArea.getY() + fontSize + step*(fileHeight + fileSpacing));
+                //truncate down the file name and path name if necessary, then render them in the file area
+                g.drawString(getTruncatedString(listFiles.get(step + localScrollFilePos).getName(), fileNameWidth, g), (int)fileArea.getX(), (int)fileArea.getY() + fileTextFontSize + step*(fileHeight + fileSpacing));
+                g.drawString(getTruncatedString(listFiles.get(step + localScrollFilePos).getPath(), (int)(fileArea.getWidth() - (fileNameWidth + spacing)), g), (int)fileArea.getX() + fileNameWidth + spacing, (int)fileArea.getY() + fileTextFontSize + step*(fileHeight + fileSpacing));
             }
         }
+        else {scrollFilePos = 0;/* if no files, then set scroll to 0 so we don't jump to the bottom of the list when files appear */}
     }
 
+    /**
+     * Adjusts the scroll value if the user attempts to scroll past the last entry of a list or above the first entry of the list
+     * @param currentScrollPos The scroll value as the user has given us
+     * @param numEntriesInList The total number of entries in the list to display (the whole list, not just that which will be shown)
+     * @param maxLinesShow The maximum number of lines we can show data on
+     * @return the potentially adjusted scroll value
+     */
+    private int adjustScrollInBounds(int currentScrollPos, int numEntriesInList, int maxLinesShow)
+    {
+        int newScroll = currentScrollPos;
+        // if the number of files is less than number which we can render, proceed with no scrolling, or if negative scroll relative to top
+        if(numEntriesInList <= maxLinesShow || currentScrollPos < 0)
+        {
+            newScroll = 0;
+        }
+        else if(currentScrollPos > numEntriesInList - maxLinesShow)// there exist too many files to render, so we respect the scroll
+        {
+            // if we have scrolled too far (such that the bottom line "should" be higher than the bottom of the screen)
+            newScroll = numEntriesInList - maxLinesShow;
+        }
+        return newScroll;
+    }
+
+    /**
+     * Truncates a String and returns the shortened version if necessary with ellipses given a max width in pixels
+     * @param text String to potentially shorten
+     * @param maxLength maximum length of the resulting String in pixels
+     * @param g Graphics object
+     * @return potentially truncated text String
+     */
+    private String getTruncatedString(String text, int maxLength, Graphics g)
+    {
+        String ellipses = "";
+        while(g.getFontMetrics().stringWidth(text + ellipses) > maxLength && !text.isEmpty())
+        {
+            text = text.substring(0,text.length() - 1);
+            ellipses = "...";
+        }
+        return text + ellipses;
+    }
+
+    /**
+     * Sets all on-screen objects' sizes based on the window size
+     */
     private void resizeWindow()
     {
         int windowHeight = getHeight();
@@ -272,8 +334,16 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         // set more rectangles for the bounding boxes of file and drive spaces
         driveArea.setBounds(spacing, spacing*3 + buttonHeight, 250, windowHeight - (spacing*4 + buttonHeight));
         fileArea.setBounds(spacing*3 + (int)driveArea.getWidth(), spacing*3 + buttonHeight, windowWidth - (spacing*4 + (int)driveArea.getWidth()), windowHeight - (spacing*4 + buttonHeight));
+
+        // define how many lines we can have in the drive and file areas
+        maxDriveLines = (int)(driveArea.getHeight() / (driveHeight + fileSpacing));
+        maxFileLines = (int)(fileArea.getHeight() / (fileHeight + fileSpacing));
     }
 
+    /**
+     * Handles when the user starts to click
+     * @param e the event to be processed
+     */
     @Override
     public void mousePressed(MouseEvent e)
     {
@@ -331,10 +401,14 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         }
     }
 
+    /**
+     * Handles when the user releases the mouse (finishes a click). This is where the actions occur.
+     * @param e the event to be processed
+     */
     @Override
     public void mouseReleased(MouseEvent e)
     {
-        /* upon release of the mouse, given that it is over the same section of screen that it began its click on, take action */
+        // upon release of the mouse, given that it is over the same section of screen that it began its click on, take action
         Point actualMousePosition = e.getPoint();
 
         if(clickingBack && backButton.contains(actualMousePosition))
@@ -405,7 +479,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         else if(clickingDrive && driveArea.contains(actualMousePosition))
         {
             // user has clicked on a drive
-            
+
             // calculate the area where the user ought to have clicked for a successful drive selection
             // this includes checking which relative drive we unclicked on and verifying it is the same as the one we started to click on
             // use a checking method rather than recalculating the position
@@ -417,7 +491,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 if(clickRelativePositionInDriveList >= 0 && !(listDrives == null) && clickRelativePositionInDriveList < listDrives.size())
                 {
                     // actually clicked on a drive that exists
-                    currentDrive = listDrives.get(clickRelativePositionInDriveList);
+                    currentDrive = listDrives.get(clickRelativePositionInDriveList + scrollDrivePos);
                     listFiles = database.getFiles(currentDrive);
                     path.clear();
                     pathText = currentDrive.getDisplayName() + " : ";
@@ -439,7 +513,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 if(clickRelativePositionInFileList >= 0 && !(listFiles == null) && clickRelativePositionInFileList < listFiles.size())
                 {
                     // actually clicked a file that exists
-                    FileItem holdFile = listFiles.get(clickRelativePositionInFileList);
+                    FileItem holdFile = listFiles.get(clickRelativePositionInFileList + scrollFilePos);
                     System.out.println(holdFile.getName() + " has id of: " + holdFile.getFileID() + " and parent of " + holdFile.getParentID() + " and is folder:" + holdFile.isFolder());
                     if(holdFile.isFolder())
                     {
@@ -454,6 +528,10 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         resetClick();
     }
 
+    /**
+     * Handles keyboard input.
+     * @param e the event to be processed
+     */
     @Override
     public void keyPressed(KeyEvent e)
     {
@@ -472,7 +550,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 // TODO: ok that single and double quote, along with tilde thing and backwards quote not being able to be pressed is ok?
                 searchBarText += e.getKeyChar();
             }
-            else if(key == 8 && searchBarText.length() > 0)
+            else if(key == 8 && !searchBarText.isEmpty())
             {
                 // backspace
                 searchBarText = searchBarText.substring(0, searchBarText.length()-1);
@@ -485,6 +563,9 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         }
     }
 
+    /**
+     * Sets all flags of what has been clicked back to their unclicked state
+     */
     public void resetClick()
     {
         clickingBack = false;
@@ -498,6 +579,9 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         clickRelativePositionInFileList = -1;
     }
 
+    /**
+     * Resets the application to the startup state.
+     */
     public void resetToHome()
     {
         currentDrive = null;
@@ -506,8 +590,33 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         searchBarText = "";
         listFiles = null;
         searching = false;
+        scrollDrivePos = 0;
+        scrollFilePos = 0;
     }
-    
+
+    /**
+     * Handles scroll wheel actions.
+     * @param e the event to be processed
+     */
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e)
+    {
+        Point mousePos = this.getMousePosition();
+        // adds scroll wheel actions to respective scrollable areas
+        if(mousePos.getY() > (2*spacing + buttonHeight))
+        {
+            if (mousePos.getX() > (2 * spacing + driveArea.getWidth()))
+            {
+                scrollFilePos += e.getWheelRotation();
+            }
+            else
+            {
+                scrollDrivePos += e.getWheelRotation();
+            }
+        }
+    }
+
+    // unused methods that are here because the Listeners require them to exist
     public void mouseClicked(MouseEvent e){}
     public void keyReleased(KeyEvent e){}
     public void mouseExited(MouseEvent e){}
