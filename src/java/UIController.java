@@ -29,8 +29,8 @@ import java.util.List;
 public class UIController extends JPanel implements ActionListener, MouseListener, KeyListener, MouseWheelListener
 {
     /*  ~~~~~ WINDOW MANAGEMENT ~~~~~ */
-    private JFrame window;
-    private Timer clock;
+    private final JFrame window;
+    private final Timer clock;
     // constant pixel values
     private final int spacing = 12; // spacing between buttons
     private final int buttonHeight = 35; // height (and width) of buttons
@@ -60,18 +60,18 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     private int maxFileLines; // max number of files possible to display
 
     /* ~~~~~ APPLICATION SPECIFIC OBJECTS ~~~~~ */
-    private DBManager database;
-    private DriveScanner driveScanner;
+    private final DBManager database;
+    private final DriveScanner driveScanner;
 
     /* ~~~~~ FILE NAVIGATION ~~~~~ */
-    private Stack<FileItem> path; // holds the file path in the order that we have descended into the drive
+    private final Stack<FileItem> path; // holds the file path in the order that we have descended into the drive
     private Drive currentDrive;
     private List<Drive> listDrives; // all the drives in the system
     private List<FileItem> listFiles; // all the files in whatever drive we are looking at
 
     /* ~~~~~ BUTTONS ~~~~~ */
     // button positions and sizes
-    private Rectangle backButton, pathBar, searchBar, refreshButton, updateButton, fileArea, driveArea;
+    private final Rectangle backButton, pathBar, searchBar, refreshButton, updateButton, fileArea, driveArea;
     // text values
     private String searchBarText;
     private String pathText;
@@ -460,13 +460,26 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             // handles clicking the update button
             if(driveScanner.detectDrives())
             {
-                // TODO: 
-                // need to know what drive we're dealing with
-                // then confirm update with that drive
-                int updateDB = JOptionPane.showConfirmDialog(null, "Confirm Update to Database with Drive ()?", "Update Database", JOptionPane.YES_NO_OPTION);
-                if (updateDB == JOptionPane.YES_OPTION)
+                // find connected drives
+                List<Drive> connectedDrives = driveScanner.getDetectedDrives();
+                int numDrives = connectedDrives.size();
+                String[] connectedDriveNames = new String[numDrives];
+
+                // pull out drive names for display
+                for(int step = 0; step < numDrives; step++)
                 {
-                    System.out.println("User chose Yes.");
+                    connectedDriveNames[step] = connectedDrives.get(step).getDisplayName();
+                }
+
+                // user selects drive, and after confirmation, update the DB with the data
+                int driveIndex = JOptionPane.showOptionDialog(null, "Please select drive to upload.", "Drive Upload Selection", JOptionPane.DEFAULT_OPTION,JOptionPane.QUESTION_MESSAGE, null, connectedDriveNames, null);
+                if(driveIndex >= 0)
+                {
+                    int updateDB = JOptionPane.showConfirmDialog(null, "Confirm Update to Database with: \n" + connectedDriveNames[driveIndex], "Update Database", JOptionPane.YES_NO_OPTION);
+                    if (updateDB == JOptionPane.YES_OPTION)
+                    {
+                        database.insertDrive(connectedDrives.get(driveIndex));
+                    }
                 }
             }
             else
