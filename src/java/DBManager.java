@@ -36,6 +36,10 @@ public class DBManager{
      String dbUser = "root"; // ssh: mysql -u root -p
      String dbPassword = "Benedictine";
 
+     //DriveScanner ds
+     //DBManager should handle calling scan() from DriveScanner, and handle list of files that is returned
+     //insertFiles
+
      /**
       * Calls all connection methods
       * @return true if connections are successful
