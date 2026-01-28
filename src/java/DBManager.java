@@ -36,7 +36,7 @@ public class DBManager{
      String dbUser = "root"; // ssh: mysql -u root -p
      String dbPassword = "Benedictine";
 
-     //DriveScanner ds
+     DriveScanner ds;
      //DBManager should handle calling scan() from DriveScanner, and handle list of files that is returned
      //insertFiles
 
@@ -152,23 +152,63 @@ public class DBManager{
       * @return String confirmation message
       */
      public String insertDrive(Drive drive) {
-          int rows = 1;
+          /* check database for existing driveSerialName */
+          String driveName = drive.getDisplayName();
+          String serialName = drive.getSerialName();
+          ResultSet rs = null;
+          int rows = 0;
           try{
-               int id = 1;
-               String driveName = drive.getDisplayName();
-               String serialName = drive.getSerialName();
-               String sql = "INSERT INTO drive (driveID, driveSerialName, driveDisplayName) VALUES (?, ?, ?)";
+               String sql = "SELECT * FROM drive WHERE driveSerialName = ?;";
                PreparedStatement stmt = connection.prepareStatement(sql);
-
-               stmt.setInt(1, id);
-               stmt.setString(2, driveName);
-               stmt.setString(3, serialName);
-
-               rows = stmt.executeUpdate();
+               stmt.setString(1, serialName);
+               rs = stmt.executeQuery();
           }catch(Exception e){
                e.printStackTrace();
           }
+
+          /* insert Drive into database if not already exists */
+          try{
+               if(!rs.next()){
+                    String sql = "INSERT INTO drive (driveSerialName, driveDisplayName) VALUES (?, ?)"
+                         + " ON DUPLICATE KEY UPDATE driveSerialName = VALUES(driveSerialName),"
+                         + " driveDisplayName = VALUES(driveDisplayName);";
+                    PreparedStatement stmt = connection.prepareStatement(sql);
+                    stmt.setString(1, serialName);
+                    stmt.setString(2, driveName);
+                    rows = stmt.executeUpdate();
+               }else{
+                    System.out.println("Drive with serial name " + serialName + " already exists in database.");
+               }
+          }catch(Exception e){
+               e.printStackTrace();
+          }
+
+          /* Scan Drive for files and add to database */
+          List<FileItem> files = ds.scan(drive);
+          for (FileItem file : files) {
+               insertFile(file);
+          }
+
           return "Inserted rows: " + rows;
+     }
+
+     private void insertFile(FileItem file){
+          /* Insert fileItem into the database */
+          int rows = 0;
+          try{
+               String sql = "INSERT IGNORE INTO fileItem (fileID, name, path, isFolder, driveID, parentID) VALUES (?, ?, ?, ?, ?, ?)";
+               PreparedStatement stmt = connection.prepareStatement(sql);
+               stmt.setString(2, file.getName());
+               stmt.setString(3, file.getPath());
+               stmt.setBoolean(4, file.isFolder());
+               stmt.setInt(5, file.getDriveID());
+               stmt.setInt(6, file.getParentID());
+               ResultSet rs = stmt.executeQuery();
+               rows = rs.getRow();
+          }catch(Exception e){
+               e.printStackTrace();
+          }
+          System.out.println("Inserted rows: " + rows);
      }
 
      /**

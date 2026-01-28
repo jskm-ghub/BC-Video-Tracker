@@ -38,6 +38,8 @@ replay_pid*
 # Gradle caches and outputs
 .gradle/
 build/
+.idea/
+BC-Video-Tracker.iml
 
 # VS Code settings
 .vscode/
