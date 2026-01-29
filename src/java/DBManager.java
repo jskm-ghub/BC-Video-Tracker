@@ -40,6 +40,12 @@ public class DBManager{
      //DBManager should handle calling scan() from DriveScanner, and handle list of files that is returned
      //insertFiles
 
+     public DBManager(DriveScanner scanner)
+     {
+          this.ds = scanner;
+          connect();
+     }
+
      /**
       * Calls all connection methods
       * @return true if connections are successful
