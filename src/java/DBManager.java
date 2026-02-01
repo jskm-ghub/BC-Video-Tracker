@@ -192,6 +192,7 @@ public class DBManager{
           /* Scan Drive for files and add to database */
           List<FileItem> files = ds.scan(drive);
           for (FileItem file : files) {
+               System.out.println(file.toString());
                insertFile(file);
           }
 

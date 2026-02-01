@@ -6,11 +6,26 @@ import java.util.List;
 import java.util.Stack;
 import java.util.ArrayList;
 
+/**
+ * The DriveScanner class is responsible for detecting connected storage drives
+ * and scanning their directory structures into FileItem representations.
+ * 
+ * It supports Windows, macOS, and Linux by using OS-specific methods
+ * to retrieve drive serial numbers.
+ */
+
 public class DriveScanner {
 
     private List<Drive> detectedDrives;
-    private int fileIDCounter = 1; // unique file ID counter
 
+    /**
+     * TODO: Replace with database-generated IDs to avoid resets across runs
+    */
+    private static int fileIDCounter = 1; // unique file ID counter
+
+    /**
+    * Constructs a new DriveScanner and initializes the drive list.
+    */
     public DriveScanner() {
         detectedDrives = new ArrayList<>();
     }
@@ -137,6 +152,13 @@ public class DriveScanner {
     return "UNKNOWN_OS_AND_SERIAL"; //In case of unsopported OS
 }
 
+    /**
+    * Retrieves the serial number of a drive on Windows systems
+    * using PowerShell commands.
+    *
+    * @param drive the root drive to query
+    * @return the drive serial number
+    */
     // WINDOWS
     private String getSerialWindows(File drive) {
         try {
@@ -303,8 +325,12 @@ public class DriveScanner {
 }
 
     /**
-     * Scan a drive and return all files/folders as FileItem objects.
-     */
+    * Scans the given drive and returns a list of FileItem objects representing
+    * all files and directories found on the drive.
+    *
+    * @param drive the drive to scan
+    * @return a list of FileItem objects found on the drive
+    */
     public List<FileItem> scan(Drive drive) {
         List<FileItem> items = new ArrayList<>();
         Stack<File> fileStack = new Stack<>();
@@ -348,8 +374,41 @@ public class DriveScanner {
 
     /**
      * Get the list of drives detected.
+     * 
+     * @return a list of detected Drive objects
      */
     public List<Drive> getDetectedDrives() {
         return detectedDrives;
     }
+    public static void main(String[] args) {
+    DriveScanner scanner = new DriveScanner();
+
+    System.out.println("Detecting drives...");
+    boolean found = scanner.detectDrives();
+
+    if (!found) {
+        System.out.println("No drives detected.");
+        return;
+    }
+
+    System.out.println("Drives detected: " + scanner.getDetectedDrives().size());
+
+    for (Drive drive : scanner.getDetectedDrives()) {
+        System.out.println("\n===== DRIVE =====");
+        System.out.println("Display Name: " + drive.getDisplayName());
+        System.out.println("Serial: " + drive.getSerialName());
+
+        System.out.println("Scanning files...");
+        List<FileItem> items = scanner.scan(drive);
+
+        System.out.println("Files found: " + items.size());
+
+        // Print first 10 items using toString()
+        for (int i = 0; i < Math.min(10, items.size()); i++) {
+            System.out.println("  " + items.get(i).toString());
+        }
+    }
 }
+
+}
+
