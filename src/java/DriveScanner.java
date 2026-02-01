@@ -84,7 +84,7 @@ public class DriveScanner {
             }
 
         } else if (osString.contains("nix") || osString.contains("nux") || osString.contains("aix")) {
-            //TODO: NOT TESTED; put together quickly based on the Mac and what I know about Linux
+            //Tested briefly; put together quickly based on the Mac and what I know about Linux
 
             //We need USERNAME to get the right directory to start with...
             String userName = System.getProperty("user.name");
@@ -217,7 +217,8 @@ public class DriveScanner {
 
         String l;
         while ((l = reader.readLine()) != null) {
-            if (l.contains("ID_SERIAL=")) {   // finds the serial property
+            //if (l.contains("ID_SERIAL=")) {   // finds the serial property
+            if (l.contains("ID_SERIAL_SHORT=")) {   // finds the serial property - appears necessary, to get only the number matching the Mac version; otherwise get e.g. PNY_USB_2.0_FD_0719... etc instead of just the "0719..." part.
                 return l.split("=")[1].trim();
             }
         }
