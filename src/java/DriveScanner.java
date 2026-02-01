@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Stack;
@@ -14,10 +15,7 @@ public class DriveScanner {
         detectedDrives = new ArrayList<>();
     }
 
-    /**
-     * Detect all drives connected to the system.
-     * @return true if at least one drive is detected.
-     */
+    /* //old version
     public boolean detectDrives() {
         detectedDrives.clear();
         File[] roots = File.listRoots(); // lists root directories (drives)
@@ -34,6 +32,91 @@ public class DriveScanner {
         }
 
         return !detectedDrives.isEmpty();
+    } */
+   /**
+     * Detect all drives connected to the system, and add them to internal list.
+     * This has to check the OS in order to correctly find all the drives.
+     * @return true if at least one drive is detected.
+     */
+    public boolean detectDrives() {
+        detectedDrives.clear();
+        String osString = System.getProperty("os.name").toLowerCase();
+        //Windows runs as before (I think); 
+
+        if (osString.contains("win")) {
+            File[] roots = File.listRoots(); // lists root directories (drives) - ONLY WORKS FOR WINDOWS
+            //both Mac and Linux are Unix-based and have only one filesystem root, i.e. "/". 
+    
+            if (roots == null || roots.length == 0) {
+                return false; // no drives detected
+            }
+    
+            for (File root : roots) {
+                String serial = getDriveSerial(root);
+                String displayName = root.getAbsolutePath(); // default display name
+                Drive drive = new Drive(serial, displayName);
+                detectedDrives.add(drive);
+            }
+        } else if (osString.contains("mac")) {
+            //This just lists things in /Volumes. This may have issues if there are other things in there (e.g. MobileBackups) other than the main drive and portable drives/USBs etc.
+            File[] insideVolumes = (new File("/Volumes")).listFiles();
+            //Inside volumes, the "Macintosh HD" or some such directory is actually a link back to "/" which we obviously don't want. The getCanonicalPath() resolves links and is used to screen it out.
+            ArrayList<File> realVolumes = new ArrayList<>();
+
+            try { //I hate this!
+                for (File volume : insideVolumes) {
+                    if (!(volume.getCanonicalPath().equals("/"))) {
+                        realVolumes.add(volume);
+                    }
+                }
+            } catch (IOException ioe) {
+                ioe.printStackTrace(System.err);
+            }
+            if (realVolumes.isEmpty()) {
+                return false; //Nothing except for the main drive
+            }
+
+            for (File realVolume : realVolumes) {
+                String serial = getSerialMac(realVolume);
+                String displayName = realVolume.getAbsolutePath(); // default display name - I don't know about this, but might as well try
+                Drive drive = new Drive(serial, displayName);
+                detectedDrives.add(drive);
+            }
+
+        } else if (osString.contains("nix") || osString.contains("nux") || osString.contains("aix")) {
+            //TODO: NOT TESTED; put together quickly based on the Mac and what I know about Linux
+
+            //We need USERNAME to get the right directory to start with...
+            String userName = System.getProperty("user.name");
+            
+            //This just tries getting things in /run/media/USERNAME. This may have issues if there are other things in there (e.g. CD drives) other than portable drives/USBs etc, or if this isn't the directory to use.
+            File runMediaUName = (new File("/run/media/" + userName));
+            //There may not be any such directory (if nothing plugged in/has been?), so check if the folder actually exists
+
+            if (runMediaUName.exists()) {
+                //Shouldn't be any looping directories in here, unlike Mac!
+                File[] mediaDevices = runMediaUName.listFiles();
+
+                if ((mediaDevices == null) || (mediaDevices.length ==0)) {
+                    return false; //Nothing in run/media/USERNAME
+                }
+    
+                for (File mediaDevice : mediaDevices) {
+                    String serial = getSerialLinux(mediaDevice);
+                    String displayName = mediaDevice.getAbsolutePath(); // default display name - I don't know about this, but might as well try - returns e.g. /Volumes/USB20FD. Could remove that if desired.
+                    Drive drive = new Drive(serial, displayName);
+                    detectedDrives.add(drive);
+                }
+            } else {//directory doesn't even exist, so can't be anything?
+                return false;
+            }
+        } else { //If none of the OS's above matched it, then who knows how to do it now. 
+            System.err.println("Unknown operating system detected (not supported)");
+            return false;
+        } 
+
+
+        return !detectedDrives.isEmpty();
     }
 
     /**
@@ -44,13 +127,14 @@ public class DriveScanner {
 
     if (os.contains("win")) {
         return getSerialWindows(drive);
+    //Mac and Linux checks below are now probably redundant, since detectDrives() now checks that
     } else if (os.contains("mac")) {
         return getSerialMac(drive);
     } else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
         return getSerialLinux(drive);
     }
 
-    return "UNKNOWN"; //In case of unsopported OS
+    return "UNKNOWN_OS_AND_SERIAL"; //In case of unsopported OS
 }
 
     // WINDOWS
@@ -153,34 +237,61 @@ public class DriveScanner {
    private String getSerialMac(File drive) {
     try {
         //find disk device from mount point
-        Process mountProc = new ProcessBuilder("df", drive.getAbsolutePath()).start();
+        Process mountProc = new ProcessBuilder("df", drive.getAbsolutePath()).start(); //seems to work: e.g. df /Volumes/USB20FD
 
         BufferedReader mread = new BufferedReader(
             new InputStreamReader(mountProc.getInputStream())
         );
 
+        //Test prints - this part works...
+        //System.out.println("Reading first and second lines from process: " + mread.readLine());
         mread.readLine(); // skip header
         String line = mread.readLine();
+        //System.out.println(line);
         if (line == null) return "UNKNOWN_MAC";
 
         String device = line.split("\\s+")[0]; // ex: /dev/disk2s1
+        //System.out.println(device); //works
 
         // Remove partition suffix (disk2s1 → disk2)
         String disk = device.replaceAll("s\\d+$", "").replace("/dev/", "");
+        //System.out.println("disk: " + disk);
 
-        // Query IORegistry for serial number
+        /* // Query IORegistry for serial number
+        //This doesn't seem to work. Doing without grep gets hundreds of nasty lines. And the lines don't seem to have any "Serial Number" or even disk name (e.g. disk2), or even the file display name (e.g. the "USB20FD" example is shown as "USB 2.0 FD@...").
+        //Also the -A20 prints 20 "lines of trailing context" after the right line, which seems useless anyway. ALSO I don't know why sh -c is necessary at all.
         Process serProc = new ProcessBuilder(
             "sh", "-c",
             "ioreg -r -c IOBlockStorageDevice | grep -A20 '" + disk + "' | grep 'Serial Number' | sed 's/.*= //'"
+        ).start(); */
+
+        //The system_profiler SPUSBDataType command worked when tested on older Mac. The "Serial Number: ..." shows up after the full name (not mounted name) and BEFORE the "BSD Name" (e.g. disk2) that extracted, so keep track of the lines with "Serial Number" until finding the line that has the "BSD Name" since last one before that will be right. (Could maybe use mark and reset?)
+        Process serialProc = new ProcessBuilder(
+            "system_profiler", "SPUSBDataType"
         ).start();
 
         BufferedReader reader = new BufferedReader(
-            new InputStreamReader(serProc.getInputStream())
+            new InputStreamReader(serialProc.getInputStream())
         );
 
-        String serial = reader.readLine();
+        //Old:
+        /* String serial = reader.readLine();
         if (serial != null && !serial.trim().isEmpty()) {
             return serial.trim().replaceAll("[\" ]", "");
+        } */
+        //New:
+        String serialLine = null;
+        String currentLine = null;
+        while ( ((currentLine = reader.readLine()) != null)) {
+            if (currentLine.contains("Serial Number")) {
+                serialLine = currentLine;
+            } else if (currentLine.contains(disk)) {
+                break;//The last thing assigned to serialLine should be right
+            }
+        }
+        if (serialLine != null && !serialLine.trim().isEmpty()) {
+            //System.out.println("Test output serial: " + serialLine.trim().replaceFirst("Serial Number: ", ""));
+            return serialLine.trim().replaceFirst("Serial Number: ", "");
         }
 
     } catch (Exception e) {

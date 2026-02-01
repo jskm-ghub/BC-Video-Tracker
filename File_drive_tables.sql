@@ -1,8 +1,9 @@
-/* DB for video tracker, based on the CSCI-3100 things from before
-From server, run mysqldump -u root -p --column-statistics=0 test_db [or videoschema_db] to verify the current state of the DBs (prints to terminal). The flag --host=000.000.000.000 option may be needed for nonstandard configurations.
+/* DB for video tracker, based on earlier database sql files for format
+
+NOTES: From server, run mysqldump -u root -p --column-statistics=0 test_db [or videoschema_db] to verify the current state of the DBs (prints to terminal). The flag --host=000.000.000.000 option may be needed for nonstandard configurations.
 To export to a file from mysqldump, run e.g. mysqldump -u root -p --column-statistics=0 videoschema_db > [EXPORT_FILENAME].sql (with EXPORT_FILENAME set to correct file/directory).
 
-NOTE: the `test_drive` table in videoschema_db is OUTDATED and should not be used as of 1/26/26!
+Also, the `test_drive` table in videoschema_db is OUTDATED and should not be used as of 1/26/26!
  */
 
 -- Note that "schema" is the same as "database" !!!
@@ -51,7 +52,7 @@ INSERT INTO `fileItem` VALUES (1,'file1','/drive1/file1/',0,1,1028,NULL),(2,'fil
 
 
 /*
--- Could add some test data to this file, similar to the example below from a previous database assignment
+-- See the example below from a previous database assignment for another example
 
 INSERT INTO Grade (STUDENT_ID, ASSIGNMENT, GRADE) values
  (13, 1, 'A'), (13, 2, 'A'), (13, 3, 'A'), (13, 4, 'A'), (13, 5, 'A'),
