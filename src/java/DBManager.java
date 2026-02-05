@@ -32,7 +32,7 @@ public class DBManager{
      Connection connection;   // Connection to the database
 
      // Database details
-     String dbName = "test_db"; // Database being used videoschema_db or test_db
+     String dbName = "videoschema_db"; // Database being used videoschema_db or test_db
      String dbUser = "root"; // ssh: mysql -u root -p
      String dbPassword = "Benedictine";
 
@@ -142,6 +142,8 @@ public class DBManager{
                     String driveName = rs.getString("driveDisplayName");
 
                     Drive d = new Drive(serialName, driveName);
+                    d.setDriveID(id);
+                    // Drive d = new Drive(id, serialName, driveName); 
                     drives.add(d);
                     //System.out.println("ID: " + id + " | Name: " + driveName + " | Serial: " + serialName);
                }
@@ -162,6 +164,7 @@ public class DBManager{
           String driveName = drive.getDisplayName();
           String serialName = drive.getSerialName();
           ResultSet rs = null;
+          int driveId = 0;
           int rows = 0;
           try{
                String sql = "SELECT * FROM drive WHERE driveSerialName = ?;";
@@ -174,7 +177,7 @@ public class DBManager{
 
           /* insert Drive into database if not already exists */
           try{
-               if(!rs.next()){
+               if(!rs.next()){ //drive does not exist, insert
                     String sql = "INSERT INTO drive (driveSerialName, driveDisplayName) VALUES (?, ?)"
                          + " ON DUPLICATE KEY UPDATE driveSerialName = VALUES(driveSerialName),"
                          + " driveDisplayName = VALUES(driveDisplayName);";
@@ -182,12 +185,32 @@ public class DBManager{
                     stmt.setString(1, serialName);
                     stmt.setString(2, driveName);
                     rows = stmt.executeUpdate();
+                    sql = "SELECT driveID FROM drive WHERE driveSerialName = " + serialName + ";";
+                    stmt = connection.prepareStatement(sql);
+                    ResultSet rs2 = stmt.executeQuery();
+                    driveId = 0;
+                    if(rs2.next()){
+                         driveId = rs2.getInt("driveID");
+                    }
                }else{
                     System.out.println("Drive with serial name " + serialName + " already exists in database.");
+                    //call database, wipe existing fileItems under that driveID
+                    
+                    String sql = "SELECT driveID FROM drive WHERE driveSerialName = " + serialName + ";";
+                    PreparedStatement stmt = connection.prepareStatement(sql);
+                    ResultSet rs2 = stmt.executeQuery();
+                    driveId = 0;
+                    if(rs2.next()){
+                         driveId = rs2.getInt("driveID");
+                    }
+                    sql = "DELETE FROM fileItem WHERE driveID = " + driveId + ";";
+                    stmt = connection.prepareStatement(sql);
+                    rows = stmt.executeUpdate();
                }
           }catch(Exception e){
                e.printStackTrace();
           }
+          drive.setDriveID(driveId);
 
           /* Scan Drive for files and add to database */
           List<FileItem> files = ds.scan(drive);
@@ -199,23 +222,39 @@ public class DBManager{
           return "Inserted rows: " + rows;
      }
 
-     private void insertFile(FileItem file){
+     private String insertFile(FileItem file){
           /* Insert fileItem into the database */
-          int rows = 0;
+          int rows =0;
           try{
-               String sql = "INSERT IGNORE INTO fileItem (fileID, name, path, isFolder, driveID, parentID) VALUES (?, ?, ?, ?, ?, ?)";
-               PreparedStatement stmt = connection.prepareStatement(sql);
-               stmt.setString(2, file.getName());
-               stmt.setString(3, file.getPath());
-               stmt.setBoolean(4, file.isFolder());
-               stmt.setInt(5, file.getDriveID());
-               stmt.setInt(6, file.getParentID());
-               ResultSet rs = stmt.executeQuery();
-               rows = rs.getRow();
+               String sql = "";
+               PreparedStatement stmt;
+               //two sets of inserts? based on if file has a parent or not (null or -1, need answered)
+               System.out.println("Parent ID: " + file.getParentID());
+               if(file.getParentID() == -1){ //no parent
+                    sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size) VALUES (?, ?, ?, ?, ?, ?)";
+                    stmt = connection.prepareStatement(sql);
+                    stmt.setInt(1, file.getFileID());
+                    stmt.setString(2, file.getName());
+                    stmt.setString(3, file.getPath());
+                    stmt.setBoolean(4, file.isFolder());
+                    stmt.setInt(5, file.getDriveID());
+                    stmt.setLong(6, file.getSize());
+               }else{ //has parent
+                    sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size, parentID) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    stmt = connection.prepareStatement(sql);
+                    stmt.setInt(1, file.getFileID());
+                    stmt.setString(2, file.getName());
+                    stmt.setString(3, file.getPath());
+                    stmt.setBoolean(4, file.isFolder());
+                    stmt.setInt(5, file.getDriveID());
+                    stmt.setLong(6, file.getSize());
+                    stmt.setInt(7, file.getParentID());
+               }
+               rows = stmt.executeUpdate();
           }catch(Exception e){
                e.printStackTrace();
           }
-          System.out.println("Inserted rows: " + rows);
+          return "Inserted file: " + file.getName();
      }
 
      /**
@@ -240,37 +279,41 @@ public class DBManager{
       * @param d Drive object
       * @param f Parent FileItem object
       * @return List of FileItem objects
+      * 
+      * need update to handle cases where parentID is null
       */
      public List<FileItem> getFiles(Drive d, FileItem f) {
           List<FileItem> files = new ArrayList<>();
 
           try{
                // query to get drive ID first
-               String sql = "SELECT driveID FROM drive WHERE driveSerialName = ?";
-               PreparedStatement query = connection.prepareStatement(sql);
-               query.setString(1, d.getSerialName());
-               ResultSet rs = query.executeQuery();
+               // String sql = "SELECT driveID FROM drive WHERE driveSerialName = ?";
+               // PreparedStatement query = connection.prepareStatement(sql);
+               // query.setString(1, d.getSerialName());
+               // ResultSet rs = query.executeQuery();
 
-               rs.next();
-               int driveId = rs.getInt("driveID");
+               // rs.next();
+               // int driveId = rs.getInt("driveID");               
+               int driveId = d.getDriveID();
 
                // query to get files with driveId and parentId (directory)
-               sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID = ?";
-               query = connection.prepareStatement(sql);
+               String sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID = ?";
+               PreparedStatement query = connection.prepareStatement(sql);
                query.setInt(1, driveId);
                query.setInt(2, f.getFileID()); //getID from parent file
                System.out.println("Displaying files under parent ID: " + f.getFileID());
-               rs = query.executeQuery();
+               ResultSet rs = query.executeQuery();
 
                while(rs.next()){
-                    int id = rs.getInt("fileID");
+                    int id = rs.getInt("fileIdWithinDrive");
                     String fileName = rs.getString("name");
                     String filePath = rs.getString("path");
                     int parentId = rs.getInt("parentID");
-                    boolean isFolder = true; //needs amendment
+                    long size = rs.getLong("size");
+                    boolean isFolder = rs.getBoolean("isFolder");
 
                     //int fileID, String name, String path, boolean isFolder, int driveID, int parentID
-                    FileItem fileItem = new FileItem(id, fileName, filePath, isFolder, driveId, parentId);
+                    FileItem fileItem = new FileItem(id, fileName, filePath, isFolder, driveId, size, parentId);
                     files.add(fileItem);
                }
           }catch(Exception e){
@@ -290,33 +333,24 @@ public class DBManager{
           List<FileItem> files = new ArrayList<>();
 
           try{
-               // query to get drive ID first
-               String sql = "SELECT driveID FROM drive WHERE driveSerialName = ?";
+               int driveId = d.getDriveID();
+
+               // query to get root files from drive
+               String sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID IS NULL";
                PreparedStatement query = connection.prepareStatement(sql);
-               query.setString(1, d.getSerialName());
+               query.setInt(1, driveId);
                ResultSet rs = query.executeQuery();
 
-               System.out.println("SERIAL: " + d.getSerialName());
-               rs.next();
-               int driveId = rs.getInt("driveID");
-               System.out.println("DRIVE ID: " + driveId);
-
-               // query to get files under driveId
-               sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID IS NULL";
-               query = connection.prepareStatement(sql);
-               query.setInt(1, driveId);
-               rs = query.executeQuery();
-
                while(rs.next()){
-                    int id = rs.getInt("fileID");
+                    int id = rs.getInt("fileIdWithinDrive");
                     String fileName = rs.getString("name");
                     String filePath = rs.getString("path");
-                    int parentId = rs.getInt("parentID");
-                    boolean isFolder = true; //needs amendment
+                    boolean isFolder = rs.getBoolean("isFolder");
+                    long size = rs.getLong("size");
+                    int parentId = -1;
                                        
                     // int fileID, String name, String path, boolean isFolder, int driveID, int parentID
-                    // might need to amend filePath and isFolder
-                    FileItem fileItem = new FileItem(id, fileName, filePath, isFolder, parentId, driveId);
+                    FileItem fileItem = new FileItem(id, fileName, filePath, isFolder, driveId, size, parentId);
                     files.add(fileItem);
                }
           }catch(Exception e){
