@@ -18,11 +18,7 @@ public class DriveScanner {
 
     private List<Drive> detectedDrives;
 
-    /**
-     * TODO: Replace with database-generated IDs to avoid resets across runs
-    */
-    private static int fileIDCounter = 1; // unique file ID counter
-
+    
     /**
     * Constructs a new DriveScanner and initializes the drive list.
     */
@@ -335,6 +331,8 @@ public class DriveScanner {
         List<FileItem> items = new ArrayList<>();
         Stack<File> fileStack = new Stack<>();
         Stack<Integer> parentStack = new Stack<>();
+        int fileIDCounter = 1; // unique file ID counter
+
 
         File root = new File(drive.getDisplayName());
         if (root.exists() && root.isDirectory()) {
@@ -353,7 +351,7 @@ public class DriveScanner {
                     current.getName(),
                     current.getAbsolutePath(),
                     isFolder,
-                    drive.getSerialName().hashCode(),
+                    drive.getDriveID(),
                     parentId
             );
             items.add(item);
