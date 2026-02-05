@@ -351,7 +351,8 @@ public class DriveScanner {
                     current.getName(),
                     current.getAbsolutePath(),
                     isFolder,
-                    drive.getSerialName().hashCode(),
+                    drive.getDriveID(),
+                    0L,
                     parentId
             );
             items.add(item);

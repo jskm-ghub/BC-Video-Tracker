@@ -185,7 +185,7 @@ public class DBManager{
                     stmt.setString(1, serialName);
                     stmt.setString(2, driveName);
                     rows = stmt.executeUpdate();
-                    sql = "SELECT driveID FROM drive WHERE driveSerialName = " + serialName + ";";
+                    sql = "SELECT driveID FROM drive WHERE driveSerialName = '" + serialName + "';";
                     stmt = connection.prepareStatement(sql);
                     ResultSet rs2 = stmt.executeQuery();
                     driveId = 0;
@@ -196,7 +196,7 @@ public class DBManager{
                     System.out.println("Drive with serial name " + serialName + " already exists in database.");
                     //call database, wipe existing fileItems under that driveID
                     
-                    String sql = "SELECT driveID FROM drive WHERE driveSerialName = " + serialName + ";";
+                    String sql = "SELECT driveID FROM drive WHERE driveSerialName = '" + serialName + "';";
                     PreparedStatement stmt = connection.prepareStatement(sql);
                     ResultSet rs2 = stmt.executeQuery();
                     driveId = 0;
