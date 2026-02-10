@@ -38,8 +38,8 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     private final int fileHeight = 20; // height of files shown in file area
     private final int fileSpacing = 7; // spacing between files and drives in their respective areas
     // Colors
-    private final Color topPanelColor = new Color(255, 238, 176);
-    private final Color mainPanelColor = new Color(255, 246, 212);
+    private final Color topPanelColor = new Color(185, 214, 225);
+    private final Color mainPanelColor = new Color(232, 236, 255);
     private final Color fileClickedColor = new Color(206, 231, 240);
     private final Color fieldBackgroundColor = new Color(242, 242, 242);
     // Fonts
@@ -249,7 +249,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         if(!(listFiles == null))
         {
             // sets how wide we allow the file name to be
-            int fileNameWidth = (int) (.6 * driveArea.getWidth());
+            int fileNameWidth = (int) (driveArea.getWidth());
 
             // need to store the value of the scroll in a local variable so it doesn't change mid-calculation
             int localScrollFilePos = adjustScrollInBounds(scrollFilePos, listFiles.size(), maxFileLines);
@@ -257,7 +257,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
 
             for(int step = 0; step < maxFileLines && step < listFiles.size(); step++)
             {
-                if(clickRelativePositionInFileList == step)
+                if(clickRelativePositionInFileList == step && (!searching && listFiles.get(step).isFolder()))
                 {
                     // highlights a file if it was clicked
                     g.setColor(fileClickedColor);

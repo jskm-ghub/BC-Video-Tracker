@@ -1,26 +1,10 @@
-public class MainApp {
-
-    private DBManager dbManager;
-    private UIController uiController;
-    private DriveScanner driveScanner;
-
+public class MainApp
+{
     public MainApp()
     {
-//        dbManager = new DBManager(); //Initializes database manager and connect to DB
-//         try {
-//            dbManager.connect();
-//        } catch (Exception e) {
-//            System.out.println("Database connection failed: " + e.getMessage());
-//            return;
-//        }
-
-        driveScanner = new DriveScanner();  //Initializes drive scanner
-        dbManager = new DBManager(driveScanner);
-
-
-        //driveScanner.detectDrives();  // Detect drives (this updates internal drive list)
-
-        uiController = new UIController(dbManager, driveScanner); //Initializes UI controller with DB manager and drive scanner
+        DriveScanner driveScanner = new DriveScanner();
+        DBManager dbManager = new DBManager(driveScanner);
+        UIController uiController = new UIController(dbManager, driveScanner);
     }
 
     public static void main(String[] args) {
