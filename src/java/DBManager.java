@@ -79,7 +79,6 @@ public class DBManager{
                System.out.println("Connecting SSH...");
                session.connect();
                int assignedPort = session.setPortForwardingL(localForwardPort, remoteHost, 3306);
-               //System.out.println("SSH tunnel established on localhost: " + assignedPort);
                System.out.println("SSH connected: " + session.isConnected());
           }catch(Exception e){
                e.printStackTrace();
