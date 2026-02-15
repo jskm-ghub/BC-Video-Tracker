@@ -1,6 +1,5 @@
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -67,7 +66,7 @@ public class DriveScanner {
     
             for (File root : roots) {
                 String serial = getSerialWindows(root);
-                String displayName = root.getName(); // default display name
+                String displayName = root.getName(); // default display name - only the name of the drive?
                 Drive drive = new Drive(serial, displayName, root);
                 detectedDrives.add(drive);
             }
@@ -98,7 +97,7 @@ public class DriveScanner {
             }
 
         } else if (osString.contains("nix") || osString.contains("nux") || osString.contains("aix")) {
-            //For Linux systems (TODO: needs to handle different media paths in different distributions)
+            //For Linux systems (needs to handle different media paths in different distributions)
 
             /* //Works for many newer Linuxes (e.g. Fedora) that use /run/media/USERNAME but not on some older Ubuntu etc or even current(?) Linux Mint that uses /media/USERNAME or /media. Replaced with more general version below.
             //We need USERNAME to get the right directory to start with...
@@ -126,20 +125,37 @@ public class DriveScanner {
                 return false;
             } */
 
+            ArrayList<File> mediaDevices = new ArrayList<>();
             //Searches system file listing current filesystems/things mounted for anything with "/media/" in it (seems only temporarily mounted things have this)
             try (BufferedReader mountListReader = new BufferedReader(new FileReader("/proc/mounts")) ) {
-                ArrayList<File> mediaDevices = new ArrayList<>();
 
                 String mountsLine;
                 while ((mountsLine = mountListReader.readLine()) != null) {
                     if (mountsLine.contains("/media/")) {
                         //lines are formatted as e.g. "/dev/sdd1 /run/media/USERNAME/USB20FD vfat ..." so get the second thing, assuming whitespace separator.
-                        mountsLine.split("\\s+")[1];
+                        String mountPt = mountsLine.split("\\s+")[1];
+                        System.out.println("found media device directory: " + mountPt);
+                        
+                        File mediaDevice = new File(mountPt);
+                        if (mediaDevice.exists()) { //don't add nonexistent thing (shouldn't happen)
+                            mediaDevices.add(mediaDevice);
+                        }
                     }
                 }
             } catch (IOException ioe) {
                 ioe.printStackTrace(System.err);
             }
+            //outside the catch so that still checking list (though probably not strictly necessary)
+            if (mediaDevices.isEmpty()) {
+                return false; //Nothing found in file
+            }
+            for (File mediaDevice : mediaDevices) {
+                String serial = getSerialLinux(mediaDevice);
+                String displayName = mediaDevice.getName(); // display name - should return e.g. USB20FD (without /run/media etc.).
+                Drive drive = new Drive(serial, displayName, mediaDevice);
+                detectedDrives.add(drive);
+            }
+
         } else { //If none of the OS's above matched it, then who knows how to do it now. 
             System.err.println("Unknown operating system detected (not supported).");
             return false;
