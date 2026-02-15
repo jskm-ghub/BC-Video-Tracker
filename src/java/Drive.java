@@ -1,3 +1,5 @@
+import java.io.File;
+
 /**
  * Drive stores the relevant data about a drive connected to user's computer.
  *
@@ -15,6 +17,7 @@ public class Drive {
     private String driveSerialName;
     private String driveDisplayName;
     private int driveID;
+    private File driveRootFolder;
 
     /**
      * Constructor; sets the driveSerialName and driveDisplayName of the drive
@@ -26,6 +29,20 @@ public class Drive {
     public Drive(String serialName, String displayName) {
         driveSerialName = serialName;
         driveDisplayName = displayName;
+        driveRootFolder = null;
+    }
+    /**
+     * Constructor; sets the driveSerialName and driveDisplayName of the drive
+     * created based on parameters. The drive's ID is not set by this 
+     * constructor; it must be set using the <code>setDriveID</code> method.
+     * @param serialName the serial number of the drive (should be unique!)
+     * @param displayName the name of the drive as displayed on a file browser
+     * @param rootFolder File object representing the root folder on this drive
+     */
+    public Drive(String serialName, String displayName, File rootFolder) {
+        driveSerialName = serialName;
+        driveDisplayName = displayName;
+        driveRootFolder = rootFolder;
     }
 
     /**
@@ -65,6 +82,17 @@ public class Drive {
     public void setDriveID(int newID) {
         this.driveID = newID;
     }
+
+    /**
+     * returns the driveRootFolder object (the immutable File object which
+     * represents the root folder of this drive; could be null!)
+     * 
+     * Watch out for whether the root folder is null!
+     */
+    public File getDriveRootFolder() {
+        return driveRootFolder;
+    }
+    //no setter necessary since the folder is either known on creation (if used when scanning drive) or not used at all)
 
     /**
      * Returns a string containing the driveSerialName and driveDisplayName 

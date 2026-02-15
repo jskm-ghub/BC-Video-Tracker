@@ -1,5 +1,7 @@
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
@@ -46,7 +48,8 @@ public class DriveScanner {
     } */
    /**
      * Detect all drives connected to the system, and add them to internal list.
-     * This has to check the OS in order to correctly find all the drives.
+     * This checks the OS in order to correctly find all the drives, and then
+     * calls the serial fetching for that specific OS.
      * @return true if at least one drive is detected.
      */
     public boolean detectDrives() {
@@ -63,15 +66,15 @@ public class DriveScanner {
             }
     
             for (File root : roots) {
-                String serial = getDriveSerial(root);
-                String displayName = root.getAbsolutePath(); // default display name
-                Drive drive = new Drive(serial, displayName);
+                String serial = getSerialWindows(root);
+                String displayName = root.getName(); // default display name
+                Drive drive = new Drive(serial, displayName, root);
                 detectedDrives.add(drive);
             }
         } else if (osString.contains("mac")) {
             //This just lists things in /Volumes. This may have issues if there are other things in there (e.g. MobileBackups) other than the main drive and portable drives/USBs etc.
             File[] insideVolumes = (new File("/Volumes")).listFiles();
-            //Inside volumes, the "Macintosh HD" or some such directory is actually a link back to "/" which we obviously don't want. The getCanonicalPath() resolves links and is used to screen it out.
+            //Inside volumes, the "Macintosh HD" or some such directory is actually a link back to "/" which we obviously don't want. The getCanonicalPath() resolves links and is used to screen it out. This structure seems to be consistent for all Mac since OS X?
             ArrayList<File> realVolumes = new ArrayList<>();
 
             try { //I hate this!
@@ -89,14 +92,15 @@ public class DriveScanner {
 
             for (File realVolume : realVolumes) {
                 String serial = getSerialMac(realVolume);
-                String displayName = realVolume.getAbsolutePath(); // default display name - I don't know about this, but might as well try
-                Drive drive = new Drive(serial, displayName);
+                String displayName = realVolume.getName(); // display name - should have e.g. USB20FD without the /Volumes in the path
+                Drive drive = new Drive(serial, displayName, realVolume);
                 detectedDrives.add(drive);
             }
 
         } else if (osString.contains("nix") || osString.contains("nux") || osString.contains("aix")) {
-            //Tested briefly; put together quickly based on the Mac and what I know about Linux
+            //For Linux systems (TODO: needs to handle different media paths in different distributions)
 
+            /* //Works for many newer Linuxes (e.g. Fedora) that use /run/media/USERNAME but not on some older Ubuntu etc or even current(?) Linux Mint that uses /media/USERNAME or /media. Replaced with more general version below.
             //We need USERNAME to get the right directory to start with...
             String userName = System.getProperty("user.name");
             
@@ -114,15 +118,30 @@ public class DriveScanner {
     
                 for (File mediaDevice : mediaDevices) {
                     String serial = getSerialLinux(mediaDevice);
-                    String displayName = mediaDevice.getAbsolutePath(); // default display name - I don't know about this, but might as well try - returns e.g. /Volumes/USB20FD. Could remove that if desired.
-                    Drive drive = new Drive(serial, displayName);
+                    String displayName = mediaDevice.getName(); // display name - should return e.g. USB20FD (without /run/media etc.).
+                    Drive drive = new Drive(serial, displayName, mediaDevice);
                     detectedDrives.add(drive);
                 }
             } else {//directory doesn't even exist, so can't be anything?
                 return false;
+            } */
+
+            //Searches system file listing current filesystems/things mounted for anything with "/media/" in it (seems only temporarily mounted things have this)
+            try (BufferedReader mountListReader = new BufferedReader(new FileReader("/proc/mounts")) ) {
+                ArrayList<File> mediaDevices = new ArrayList<>();
+
+                String mountsLine;
+                while ((mountsLine = mountListReader.readLine()) != null) {
+                    if (mountsLine.contains("/media/")) {
+                        //lines are formatted as e.g. "/dev/sdd1 /run/media/USERNAME/USB20FD vfat ..." so get the second thing, assuming whitespace separator.
+                        mountsLine.split("\\s+")[1];
+                    }
+                }
+            } catch (IOException ioe) {
+                ioe.printStackTrace(System.err);
             }
         } else { //If none of the OS's above matched it, then who knows how to do it now. 
-            System.err.println("Unknown operating system detected (not supported)");
+            System.err.println("Unknown operating system detected (not supported).");
             return false;
         } 
 
@@ -130,23 +149,12 @@ public class DriveScanner {
         return !detectedDrives.isEmpty();
     }
 
-    /**
+    /*
      * Get a serial number for a drive (Checks the OS first, then calls the serial fetching for that specific OS)
+     * Removed public method because not used anywhere else.
      */
-    public String getDriveSerial(File drive) {
-    String os = System.getProperty("os.name").toLowerCase();
+    //public String getDriveSerial(File drive) {...}
 
-    if (os.contains("win")) {
-        return getSerialWindows(drive);
-    //Mac and Linux checks below are now probably redundant, since detectDrives() now checks that
-    } else if (os.contains("mac")) {
-        return getSerialMac(drive);
-    } else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
-        return getSerialLinux(drive);
-    }
-
-    return "UNKNOWN_OS_AND_SERIAL"; //In case of unsopported OS
-}
 
     /**
     * Retrieves the serial number of a drive on Windows systems
@@ -334,7 +342,10 @@ public class DriveScanner {
         int fileIDCounter = 1; // unique file ID counter
 
 
-        File root = new File(drive.getDisplayName());
+        //File root = new File(drive.getDisplayName()); //BAD! Means that display name has to be the full path!!!
+        File root = drive.getDriveRootFolder(); //safe b/c File is immutable
+
+        // Theoretically, root could be null. But scan() is only called in this way: UIController -> DriveScanner.getDetectedDrives called to get list; then -> DBManager.insertDrive() called with each of these drives, which in turn -> DriveScanner.scan() called with drive. So it shouldn't ever be null.
         if (root.exists() && root.isDirectory()) {
             fileStack.push(root);
             parentStack.push(-1); // root has no parent

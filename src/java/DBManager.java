@@ -369,15 +369,14 @@ public class DBManager{
           String queryForLike = "%" + query.replaceAll("[^-\\w]+", "%") + "%"; //tested using jshell String query = "this is  a++*# sIlLy^tEsT's_tEsT- string ";
           ArrayList<FileItem> resultFileList = new ArrayList<>(); //must initialize, avoid null pointer, & List = only an interface!
           
-          //assume connected already? CHECK FOR CORRECT NAMES also!
           try {
-               //should be case insensitive by default
-               PreparedStatement prepdSearchStmt = connection.prepareStatement("SELECT * from `fileItem` WHERE name LIKE ?;");
+               //should be case insensitive by default. Could also sort by driveID, path instead (name seems a bit easier to use?)
+               PreparedStatement prepdSearchStmt = connection.prepareStatement("SELECT * from `fileItem` WHERE name LIKE ?  ORDER BY `driveID`,`name` ASC;");
                prepdSearchStmt.setString(1, queryForLike);
                ResultSet searchResults = prepdSearchStmt.executeQuery();
 
                while (searchResults.next()) {
-               //assuming the Files table has columns int fileID, String name, String path, boolean isFolder, int driveID, long size, int parentID in that order i.e. column index 1-7 (could use String column names, but this supposedly more efficient)
+               //assuming the Files table has columns int fileIdwithinDrive, String name, String path, boolean isFolder, int driveID, long size, int parentID in that order i.e. column index 1-7 (could use String column names, but this supposedly more efficient)
                     FileItem itemFromRow = new FileItem(searchResults.getInt(1), searchResults.getString(2), searchResults.getString(3), searchResults.getBoolean(4), searchResults.getInt(5), searchResults.getLong(6), searchResults.getInt(7));
                     //strange behavior if boolean value NULL in SQL shouldn't be an issue b/c not allowed to be null in this DB.
 
