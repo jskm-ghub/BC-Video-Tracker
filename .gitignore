@@ -43,3 +43,7 @@ BC-Video-Tracker.iml
 
 # VS Code settings
 .vscode/
+
+# Encryption process
+src/java/Encryptor.java
+src/secure/credentials.json

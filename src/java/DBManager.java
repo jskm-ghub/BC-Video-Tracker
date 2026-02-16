@@ -10,6 +10,14 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+//Encryption
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Base64;
+
 // External Libraries
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
@@ -35,6 +43,7 @@ public class DBManager{
      String dbName = "videoschema_db"; // Database being used videoschema_db or test_db
      String dbUser = "root"; // ssh: mysql -u root -p
      String dbPassword = "Benedictine";
+     String decryptedJson = "";
 
      DriveScanner ds;
      //DBManager should handle calling scan() from DriveScanner, and handle list of files that is returned
@@ -44,6 +53,8 @@ public class DBManager{
      {
           this.ds = scanner;
           connect();
+          decryptFile("/Users/lsnicotra/Desktop/BC-Video-Tracker/src/secure/EncryptedCredentials.enc",
+               "BCRAVENS12345678");
      }
 
      /**
@@ -353,6 +364,26 @@ public class DBManager{
           }
           return files;
      }
+
+     public static String decryptFile(String filePath, String secret) {
+          byte[] decryptedBytes = new byte[0];
+          try{
+               byte[] keyBytes = secret.getBytes();
+               SecretKey key = new SecretKeySpec(keyBytes, "AES");    
+               Cipher cipher = Cipher.getInstance("AES");
+     
+               cipher.init(Cipher.DECRYPT_MODE, key);  
+               byte[] encryptedBytes = Base64.getDecoder().decode(
+                       Files.readAllBytes(Paths.get(filePath))); 
+               decryptedBytes = cipher.doFinal(encryptedBytes);
+     
+               System.out.println(new String(decryptedBytes));
+          }catch(Exception e){
+               e.printStackTrace();
+          }
+          return new String(decryptedBytes);
+     }
+
 
      /**
       * Searches database (using LIKE/regular expressions) for any file/folder
