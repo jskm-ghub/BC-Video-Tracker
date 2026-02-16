@@ -45,5 +45,4 @@ BC-Video-Tracker.iml
 .vscode/
 
 # Encryption process
-src/java/Encryptor.java
 src/secure/credentials.json

@@ -54,10 +54,10 @@ public class DBManager{
      public DBManager(DriveScanner scanner)
      {
           this.ds = scanner;
-          connect();
           decryptedJson = decryptFile("src/secure/EncryptedCredentials.enc",
-               "BCRAVENS12345678");
+          "BCRAVENS12345678");
           parseJson(decryptedJson);
+          connect();
      }
 
      /**
@@ -126,6 +126,7 @@ public class DBManager{
                System.out.println("Connecting to database...");
                String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
                     + "?useSSL=false"
+                    + "&allowPublicKeyRetrieval=true"
                     + "&connectTimeout=5000"
                     + "&socketTimeout=5000";
                connection = DriverManager.getConnection(dburl, dbUser, dbPassword);
