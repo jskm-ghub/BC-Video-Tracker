@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Stack;
 import java.util.ArrayList;
+import javax.swing.filechooser.FileSystemView;
+
 
 /**
  * The DriveScanner class is responsible for detecting connected storage drives
@@ -64,11 +66,28 @@ public class DriveScanner {
                 return false; // no drives detected
             }
     
-            for (File root : roots) {
-                String serial = getSerialWindows(root);
-                String displayName = root.getName(); // default display name - only the name of the drive?
-                Drive drive = new Drive(serial, displayName, root);
-                detectedDrives.add(drive);
+            FileSystemView fsv = FileSystemView.getFileSystemView();
+
+            for (File root : File.listRoots()) {
+                // Must be a drive
+                if (!fsv.isDrive(root)) continue;
+
+                // Skip the main system drive (usually C:)
+                String systemDriveLetter = System.getenv("SystemDrive"); // usually "C:"
+                if (systemDriveLetter != null && root.getAbsolutePath().startsWith(systemDriveLetter)) {
+                    continue;
+                }
+
+                // Check if the drive is removable, which is want we want to show
+                if (fsv.isDrive(root) && fsv.getSystemTypeDescription(root) != null &&
+                    (fsv.getSystemTypeDescription(root).toLowerCase().contains("removable") ||
+                    fsv.getSystemTypeDescription(root).toLowerCase().contains("usb"))) {
+
+                    String serial = getSerialWindows(root);
+                    String displayName = root.getName();
+                    Drive drive = new Drive(serial, displayName, root);
+                    detectedDrives.add(drive);
+                }
             }
         } else if (osString.contains("mac")) {
             //This just lists things in /Volumes. This may have issues if there are other things in there (e.g. MobileBackups) other than the main drive and portable drives/USBs etc.
@@ -385,7 +404,7 @@ public class DriveScanner {
             items.add(item);
 
             if (isFolder) {
-                File[] children = current.listFiles();
+                File[] children = current.listFiles(file -> !file.isHidden()); // thi will ignore hidden files
                 if (children != null) {
                     for (File child : children) {
                         fileStack.push(child);
@@ -393,6 +412,7 @@ public class DriveScanner {
                     }
                 }
             }
+
         }
 
         return items;
