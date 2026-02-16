@@ -114,7 +114,7 @@ public class Drive {
      * driveDisplayName attributes.
      * Beware of trying to call this if the driveID hasn't been set yet!!
      */
-    public String toStringWithID() {
+    public String toStringWithID() { //TODO: remove and handle this in the toString (toString is called by println())
         StringBuilder outputBuilder = new StringBuilder("Drive(");
         outputBuilder.append(this.driveID);
         outputBuilder.append(", ");

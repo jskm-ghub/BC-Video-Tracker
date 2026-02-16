@@ -28,7 +28,7 @@ public class FileItem {
     //False means the item object is a file; true is a folder
     private boolean isFolder;
     private int driveID;
-    //Contradictory documentation given; I think this should be a long?
+    // TODO: Contradictory documentation given; I think this should be a long?
     private Long size;
     private int parentID;
 
@@ -68,7 +68,7 @@ public class FileItem {
         this.path = path;
         this.isFolder = isFolder;
         this.driveID = driveID;
-        //Is the below strictly necessary? May be null already
+        // TODO: Is the below strictly necessary? May be null already
         this.size = null;
         this.parentID = parentID;
     }

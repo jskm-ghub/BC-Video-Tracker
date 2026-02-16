@@ -95,7 +95,7 @@ public class DriveScanner {
             //Inside volumes, the "Macintosh HD" or some such directory is actually a link back to "/" which we obviously don't want. The getCanonicalPath() resolves links and is used to screen it out. This structure seems to be consistent for all Mac since OS X?
             ArrayList<File> realVolumes = new ArrayList<>();
 
-            try { //I hate this!
+            try { //I hate this! //TODO: insideVolumes is being flagged as potentially null; should be handled
                 for (File volume : insideVolumes) {
                     if (!(volume.getCanonicalPath().equals("/"))) {
                         realVolumes.add(volume);
@@ -175,7 +175,7 @@ public class DriveScanner {
                 detectedDrives.add(drive);
             }
 
-        } else { //If none of the OS's above matched it, then who knows how to do it now. 
+        } else { //If none of the OS's above matched it, then who knows how to do it now. // TODO: should tell the user the problem here
             System.err.println("Unknown operating system detected (not supported).");
             return false;
         } 

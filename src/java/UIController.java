@@ -49,7 +49,6 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     private final Font fileTextFont = new Font("Arial", Font.PLAIN, fileTextFontSize);
     // flags
     private boolean clickingBack, clickingSearch, clickingRefresh, clickingUpdate, clickingDrive, clickingFile;
-    private boolean screenUpdated;
     private boolean searching;
     // position markers
     private int clickRelativePositionInDriveList, clickRelativePositionInFileList;
@@ -104,7 +103,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
 
         // initialize specific variables
         listDrives = dbm.getDrives();
-        path = new Stack<FileItem>();
+        path = new Stack<>();
         resetToHome();
 
         // checks where we are clicking
@@ -127,7 +126,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         }
         );
         window.setVisible(true);
-        window.setSize(842,500);
+        window.setSize(842,500); // default window size
         window.add(this); // that is, the JPanel
         this.setBackground(mainPanelColor);
         resizeWindow();
@@ -153,7 +152,6 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     @Override
     public void actionPerformed(ActionEvent e)
     {
-        // TODO: maybe not repaint every time?
         this.repaint();
     }
 
@@ -164,10 +162,9 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     @Override
     public void paintComponent(Graphics g)
     {
-        // TODO: maybe we don't have to resize every single time?
         super.paintComponent(g);
-        render(g);
         resizeWindow();
+        render(g);
     }
 
     /**
@@ -479,6 +476,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                     if (updateDB == JOptionPane.YES_OPTION)
                     {
                         database.insertDrive(connectedDrives.get(driveIndex));
+                        listDrives = database.getDrives();
                     }
                 }
             }
