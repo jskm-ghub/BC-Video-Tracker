@@ -1,7 +1,3 @@
-// javac -cp "src/lib/*" -d out src/java/*.java
-// java -cp "out:src/lib/*" MainApp
-// ./compile-run_MAC.sh
-
 // Java Libraries
 import java.sql.*;
 import java.util.*;
@@ -10,7 +6,12 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-//Encryption
+// Json Parsing
+import javax.json.Json;
+import javax.json.stream.JsonParser;
+import java.io.StringReader;
+
+// Encryption
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -25,36 +26,38 @@ import com.jcraft.jsch.ChannelSftp;
 
 
 public class DBManager{
-     private static final String HOST = "bc-marketingvideotracker.benedictine.edu";
-     private static final String USER = "nico3528";
-     private static final String PASSWORD = "ZanLuc2117729?";
-
+     
      // Server details
      String remoteHost = "127.0.0.1"; // MySQL host from server perspective
      int remotePort = 22;             // MySQL port on server
      int localForwardPort = 3307;     // Local port for SSH tunnel
-
+     
      // Connection objects
      Session session;         // SSH session
      ChannelSftp channelSftp; // Connection to the server
      Connection connection;   // Connection to the database
-
+     
      // Database details
-     String dbName = "videoschema_db"; // Database being used videoschema_db or test_db
-     String dbUser = "root"; // ssh: mysql -u root -p
-     String dbPassword = "Benedictine";
+     private String sshHost = "";
+     private String sshUser = "";
+     private String sshPassword = "";
+     String dbName = "videoschema_db";
+     String dbUser = "";
+     String dbPassword = "";
      String decryptedJson = "";
 
      DriveScanner ds;
-     //DBManager should handle calling scan() from DriveScanner, and handle list of files that is returned
-     //insertFiles
 
+     /**
+      * Constructor
+      */
      public DBManager(DriveScanner scanner)
      {
           this.ds = scanner;
           connect();
-          decryptFile("/Users/lsnicotra/Desktop/BC-Video-Tracker/src/secure/EncryptedCredentials.enc",
+          decryptedJson = decryptFile("src/secure/EncryptedCredentials.enc",
                "BCRAVENS12345678");
+          parseJson(decryptedJson);
      }
 
      /**
@@ -79,8 +82,8 @@ public class DBManager{
           try{
                // Set up JSch session and 'Log in'
                JSch jsch = new JSch();
-               session = jsch.getSession(USER, HOST, remotePort);
-               session.setPassword(PASSWORD);
+               session = jsch.getSession(sshUser, sshHost, remotePort);
+               session.setPassword(sshPassword);
 
                Properties config = new Properties();
                // For development; in production you’d handle host keys properly
@@ -365,7 +368,13 @@ public class DBManager{
           return files;
      }
 
-     public static String decryptFile(String filePath, String secret) {
+     /**
+      * Decrypts login credentials for server and MySQL
+      * @param filePath relative path of .enc file
+      * @param secret key used in encryption of file
+      * @return json string of credentials
+      */
+     private static String decryptFile(String filePath, String secret) {
           byte[] decryptedBytes = new byte[0];
           try{
                byte[] keyBytes = secret.getBytes();
@@ -375,15 +384,59 @@ public class DBManager{
                cipher.init(Cipher.DECRYPT_MODE, key);  
                byte[] encryptedBytes = Base64.getDecoder().decode(
                        Files.readAllBytes(Paths.get(filePath))); 
-               decryptedBytes = cipher.doFinal(encryptedBytes);
-     
-               System.out.println(new String(decryptedBytes));
+               decryptedBytes = cipher.doFinal(encryptedBytes);     
           }catch(Exception e){
                e.printStackTrace();
           }
           return new String(decryptedBytes);
      }
 
+     /**
+      * Parses through Json string of login credentials.
+      * Assigns values to global variables.
+      * @param json String of Json values
+      */
+     private void parseJson(String json){
+          JsonParser parser = Json.createParser(new StringReader(json));
+          String currentKey = "";
+          String value = "";
+          try{
+               while(parser.hasNext()){
+                    JsonParser.Event event = parser.next();
+                    switch (event) {
+
+                         case KEY_NAME:
+                              currentKey = parser.getString();
+                              break;     
+                         case VALUE_STRING:
+                              value = parser.getString();
+
+                         switch (currentKey) {
+                              case "sshHost":
+                                   sshHost = value;
+                                   break;
+                              case "sshUser":
+                                   sshUser = value;
+                                   break;
+                              case "sshPassword":
+                                   sshPassword = value;
+                                   break;
+                              case "dbUser":
+                                   dbUser = value;
+                                   break;
+                              case "dbPass":
+                                   dbPassword = value;
+                                   break;
+                         }
+                         break;
+                         default:
+                         break;
+                    }
+               }
+          }catch(Exception e){
+               e.printStackTrace();
+          }
+     }
 
      /**
       * Searches database (using LIKE/regular expressions) for any file/folder
