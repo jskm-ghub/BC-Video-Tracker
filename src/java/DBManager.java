@@ -5,10 +5,6 @@ import java.util.Properties;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-
-// Json Parsing
-import javax.json.Json;
-import javax.json.stream.JsonParser;
 import java.io.StringReader;
 
 // Encryption
@@ -23,29 +19,21 @@ import java.util.Base64;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.ChannelSftp;
+import javax.json.Json;
+import javax.json.stream.JsonParser;
 
 
 public class DBManager{
-     
-     // Server details
-     String remoteHost = "127.0.0.1"; // MySQL host from server perspective
-     int remotePort = 22;             // MySQL port on server
-     int localForwardPort = 3307;     // Local port for SSH tunnel
-     
-     // Connection objects
-     Session session;         // SSH session
-     ChannelSftp channelSftp; // Connection to the server
-     Connection connection;   // Connection to the database
-     
-     // Database details
-     private String sshHost = "";
-     private String sshUser = "";
-     private String sshPassword = "";
-     String dbName = "videoschema_db";
-     String dbUser = "";
-     String dbPassword = "";
+          
+     // Database details, retrieved from encrypted file
+     int dbPort = 3306;
      String decryptedJson = "";
-
+     String host = "";
+     String dbName = "";
+     String dbUser = "";
+     String dbPass = "";
+     
+     Connection connection; //JDBC connection to MySQL database
      DriveScanner ds;
 
      /**
@@ -53,88 +41,37 @@ public class DBManager{
       */
      public DBManager(DriveScanner scanner)
      {
+          /* Ignore unless re-encryption is necessary; Encrypts ingored credentials.json file */
+          // Encryptor.encryptFile("src/secure/credentials.json","src/secure/EncryptedCredentials.enc","BCRAVENS12345678");
+
           this.ds = scanner;
-          decryptedJson = decryptFile("src/secure/EncryptedCredentials.enc",
-          "BCRAVENS12345678");
+          decryptedJson = decryptFile("src/secure/EncryptedCredentials.enc","BCRAVENS12345678");
           parseJson(decryptedJson);
-          connect();
-     }
-
-     /**
-      * Calls all connection methods
-      * @return true if connections are successful
-      */
-     public boolean connect(){
-          startSession();
-          connectSFTP();
-          connectDB();
-
-          return true;
+          System.out.println("Credentials decrypted and parsed successfully.");
+          connectDatabase();
      }
      
      /**
-      * Establishes an SSH tunnel to the remote server
-      * Session is stored in the 'session' field
+      * Connects directly to MySQL database through port 3306.
+      * Uses credentials previously decrypted
       */
-     private void startSession() {
-          if (session != null && session.isConnected()) return; // already up
-          
-          try{
-               // Set up JSch session and 'Log in'
-               JSch jsch = new JSch();
-               session = jsch.getSession(sshUser, sshHost, remotePort);
-               session.setPassword(sshPassword);
-
-               Properties config = new Properties();
-               // For development; in production you’d handle host keys properly
-               config.put("StrictHostKeyChecking", "no");
-               session.setConfig(config);
-
-               System.out.println("Connecting SSH...");
-               session.connect();
-               int assignedPort = session.setPortForwardingL(localForwardPort, remoteHost, 3306);
-               System.out.println("SSH connected: " + session.isConnected());
-          }catch(Exception e){
-               e.printStackTrace();
-          }
-     }
-
-     /**
-      * Establishes SFTP connection to the remote server
-      * Channel is stored in the 'channelSftp' field
-      * Could be of possible use for file stuff in future, 
-      * Not required for SSH or DB connection, may later remove
-      */
-     private void connectSFTP() {
-          try{
-               // Secured File Transfer Protocol (SFTP) channel
-               channelSftp = (ChannelSftp) session.openChannel("sftp");
-               channelSftp.connect();
-          }catch(Exception e){
-               e.printStackTrace();
-          }
-     }
-
-     /**
-      * Establishes a connection to the database through the SSH tunnel
-      * Connection is stored in the 'connection' field
-      * Currently set to use root user
-      */
-     private void connectDB() {
-          try {
-               if (connection != null && !connection.isClosed()) return; // already connected
-               System.out.println("Connecting to database...");
-               String dburl = "jdbc:mysql://127.0.0.1:" + localForwardPort + "/" + dbName
-                    + "?useSSL=false"
+     private void connectDatabase(){
+          String dburl = "jdbc:mysql://" + host + ":" + dbPort + "/" + dbName
+                    + "?useSSL=true"
+                    + "&requireSSL=true"
                     + "&allowPublicKeyRetrieval=true"
+                    + "&rewriteBatchedStatements=true"
                     + "&connectTimeout=5000"
                     + "&socketTimeout=5000";
-               connection = DriverManager.getConnection(dburl, dbUser, dbPassword);
-               System.out.println("Database connected: " + (connection != null && !connection.isClosed()));
-          } catch (SQLException e) {
-               System.out.println("SQLState: " + e.getSQLState());
-               System.out.println("ErrorCode: " + e.getErrorCode());
-               System.out.println("Message: " + e.getMessage());
+          try{
+               System.out.println("Connecting to database...");
+               connection = DriverManager.getConnection(dburl, dbUser, dbPass);
+               if(connection != null){
+                    System.out.println("Database connected successfully.");
+               }else{
+                    System.out.println("Failed to connect to database.");
+               }
+          }catch(Exception e){
                e.printStackTrace();
           }
      }
@@ -157,9 +94,7 @@ public class DBManager{
 
                     Drive d = new Drive(serialName, driveName);
                     d.setDriveID(id);
-                    // Drive d = new Drive(id, serialName, driveName); 
                     drives.add(d);
-                    //System.out.println("ID: " + id + " | Name: " + driveName + " | Serial: " + serialName);
                }
           }catch(Exception e){
                e.printStackTrace();
@@ -229,16 +164,72 @@ public class DBManager{
           }
           drive.setDriveID(driveId);
 
-          /* Scan Drive for files and add to database */
+          /* Scan Drive for files and add to database Individually */
+          /* For testing, comment lines 178 through 180 */
           List<FileItem> files = ds.scan(drive);
           for (FileItem file : files) {
                System.out.println(file.toString());
                insertFile(file);
           }
-
           return "Inserted rows: " + rows;
+
+          /* Insert files as a batch */
+          /* For testing, uncomment lines below and comment lines above */
+          // List<FileItem> files = ds.scan(drive);
+          // batchInsertFiles(files);
+          // return "Batch Inserted;";
+          
      }
 
+     private void batchInsertFiles(List<FileItem> files){
+          String sql = "";
+          PreparedStatement batchInsertStmt = null;
+          for(FileItem file : files){
+               try{
+                    if(file.getParentID() == -1){ //no parent
+                         sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size) VALUES (?, ?, ?, ?, ?, ?)";
+                         batchInsertStmt = connection.prepareStatement(sql);
+                         batchInsertStmt.setInt(1, file.getFileID());
+                         batchInsertStmt.setString(2, file.getName());
+                         batchInsertStmt.setString(3, file.getPath());
+                         batchInsertStmt.setBoolean(4, file.isFolder());
+                         batchInsertStmt.setInt(5, file.getDriveID());
+                         batchInsertStmt.setLong(6, file.getSize());
+                    }else{ //has parent
+                         sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size, parentID) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                         batchInsertStmt = connection.prepareStatement(sql);
+                         batchInsertStmt.setInt(1, file.getFileID());
+                         batchInsertStmt.setString(2, file.getName());
+                         batchInsertStmt.setString(3, file.getPath());
+                         batchInsertStmt.setBoolean(4, file.isFolder());
+                         batchInsertStmt.setInt(5, file.getDriveID());
+                         batchInsertStmt.setLong(6, file.getSize());
+                         batchInsertStmt.setInt(7, file.getParentID());
+                    }
+                    batchInsertStmt.addBatch();
+               }catch(Exception e){
+                    e.printStackTrace();
+               }
+          }
+          try{
+               batchInsertStmt.executeBatch();
+               connection.commit();
+          }catch(Exception e){
+               try{
+                    connection.rollback();
+               }catch(Exception ex){
+                    ex.printStackTrace();
+               }
+               e.printStackTrace();
+          }finally{
+               try{
+                    connection.setAutoCommit(true);
+               }catch(Exception ex){
+                    ex.printStackTrace();
+               }
+          }
+     }
+     
      /**
       * Inserts a single fileItem into the database.
       * Called by insertDrive()
@@ -286,8 +277,6 @@ public class DBManager{
           try{
                if(connection != null && !connection.isClosed()){
                     connection.close();
-                    session.disconnect();
-                    channelSftp.disconnect();
                }
           }catch(Exception e){
                e.printStackTrace();
@@ -413,20 +402,17 @@ public class DBManager{
                               value = parser.getString();
 
                          switch (currentKey) {
-                              case "sshHost":
-                                   sshHost = value;
+                              case "host":
+                                   host = value;
                                    break;
-                              case "sshUser":
-                                   sshUser = value;
-                                   break;
-                              case "sshPassword":
-                                   sshPassword = value;
+                              case "dbName":
+                                   dbName = value;
                                    break;
                               case "dbUser":
                                    dbUser = value;
                                    break;
                               case "dbPass":
-                                   dbPassword = value;
+                                   dbPass = value;
                                    break;
                          }
                          break;

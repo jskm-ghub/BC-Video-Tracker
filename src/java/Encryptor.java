@@ -4,7 +4,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
-//Encryptor.encrpytFile("/Users/lsnicotra/Desktop/BC-Video-Tracker/src/secure/credentials.json","/Users/lsnicotra/Desktop/BC-Video-Tracker/src/secure/EncryptedCredentials.enc","BCRAVENS12345678");
+
 public class Encryptor {
 
      private static final String ALGO = "AES";
@@ -21,6 +21,7 @@ public class Encryptor {
                byte[] encryptedBytes = cipher.doFinal(inputBytes); 
      
                Files.write(Paths.get(outputPath), Base64.getEncoder().encode(encryptedBytes));
+               System.out.println("File encrypted successfully.");
           }catch(Exception e){
                e.printStackTrace();
           }

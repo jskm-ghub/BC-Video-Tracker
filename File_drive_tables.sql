@@ -42,8 +42,6 @@ CREATE TABLE `fileItem` (
   FOREIGN KEY (`parentID`) REFERENCES `fileItem` (`fileIdWithinDrive`)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
--- I choose NO ACTION b/c I don't want issues with files getting "deleted" when things are moved for some weird reason (though shouldn't be an issue);
-
 
 -- Some test data for the "real" DB, examples taken from the "test_db" test data, as given by running mysqldump. (Could the auto-increment column be omitted safely?):
 INSERT INTO `drive` VALUES (1,'1A','drive1'),(2,'2B','drive2'),(3,'3C','drive3'),(4,'4D','drive4'),(5,'5E','drive5');
