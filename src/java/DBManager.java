@@ -165,57 +165,50 @@ public class DBManager{
           }
           drive.setDriveID(driveId);
 
-          /* Scan Drive for files and add to database Individually */
-          /* For testing, comment lines 178 through 180 */
-          List<FileItem> files = ds.scan(drive);
-          for (FileItem file : files)
-          {
-               System.out.println(file.toString());
-               insertFile(file);
-          }
-          return "Inserted rows: " + rows;
-
           /* Insert files as a batch */
           /* For testing, uncomment lines below and comment lines above */
-          // List<FileItem> files = ds.scan(drive);
-          // batchInsertFiles(files);
-          // return "Batch Inserted;";
+          List<FileItem> files = ds.scan(drive);
+          batchInsertFiles(files);
+          return "Batch Inserted;";
           
      }
 
+     /**
+      * Inserts a list of FileItems into the database as a batch for efficiency.
+      * @param files List of FileItem objects to insert
+      */
      private void batchInsertFiles(List<FileItem> files){
-          String sql = "";
-          PreparedStatement batchInsertStmt = null;
-          for(FileItem file : files){
-               try{
-                    if(file.getParentID() == -1){ //no parent
-                         sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size) VALUES (?, ?, ?, ?, ?, ?)";
-                         batchInsertStmt = connection.prepareStatement(sql);
-                         batchInsertStmt.setInt(1, file.getFileID());
-                         batchInsertStmt.setString(2, file.getName());
-                         batchInsertStmt.setString(3, file.getPath());
-                         batchInsertStmt.setBoolean(4, file.isFolder());
-                         batchInsertStmt.setInt(5, file.getDriveID());
-                         batchInsertStmt.setLong(6, file.getSize());
-                    }else{ //has parent
-                         sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size, parentID) VALUES (?, ?, ?, ?, ?, ?, ?)";
-                         batchInsertStmt = connection.prepareStatement(sql);
-                         batchInsertStmt.setInt(1, file.getFileID());
-                         batchInsertStmt.setString(2, file.getName());
-                         batchInsertStmt.setString(3, file.getPath());
-                         batchInsertStmt.setBoolean(4, file.isFolder());
-                         batchInsertStmt.setInt(5, file.getDriveID());
-                         batchInsertStmt.setLong(6, file.getSize());
-                         batchInsertStmt.setInt(7, file.getParentID());
-                    }
-                    batchInsertStmt.addBatch();
-               }catch(Exception e){
-                    e.printStackTrace();
-               }
-          }
+
+          String sql = "INSERT INTO fileItem " +
+               "(fileIdWithinDrive, name, path, isFolder, driveID, size, parentID) " +
+               "VALUES (?, ?, ?, ?, ?, ?, ?)";
+          PreparedStatement stmt = null;
+
           try{
-               batchInsertStmt.executeBatch();
-               connection.commit();
+               connection.setAutoCommit(false);
+               stmt = connection.prepareStatement(sql);
+
+               for(FileItem file : files){
+
+                    stmt.setInt(1, file.getFileID());
+                    stmt.setString(2, file.getName());
+                    stmt.setString(3, file.getPath());
+                    stmt.setBoolean(4, file.isFolder());
+                    stmt.setInt(5, file.getDriveID());
+                    stmt.setLong(6, file.getSize());
+
+                    if(file.getParentID() == -1){
+                         stmt.setNull(7, java.sql.Types.INTEGER);
+                    }else{
+                         stmt.setInt(7, file.getParentID());
+                    }
+               
+                    stmt.addBatch();
+               }
+
+          stmt.executeBatch();
+          connection.commit();
+
           }catch(Exception e){
                try{
                     connection.rollback();
@@ -223,52 +216,15 @@ public class DBManager{
                     ex.printStackTrace();
                }
                e.printStackTrace();
+
           }finally{
                try{
-                    connection.setAutoCommit(true); // TODO: you never set it to false, which i think you intended to, fyi
+                    connection.setAutoCommit(true);
+                    if(stmt != null) stmt.close();
                }catch(Exception ex){
                     ex.printStackTrace();
                }
           }
-     }
-     
-     /**
-      * Inserts a single fileItem into the database.
-      * Called by insertDrive()
-      * @param file FileItem object to insert
-      * @return Name of fileItem added
-      */
-     private String insertFile(FileItem file){
-          /* Insert fileItem into the database */
-          int rows =0;
-          try{
-               String sql = "";
-               PreparedStatement stmt;
-               if(file.getParentID() == -1){ //no parent
-                    sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size) VALUES (?, ?, ?, ?, ?, ?)";
-                    stmt = connection.prepareStatement(sql);
-                    stmt.setInt(1, file.getFileID());
-                    stmt.setString(2, file.getName());
-                    stmt.setString(3, file.getPath());
-                    stmt.setBoolean(4, file.isFolder());
-                    stmt.setInt(5, file.getDriveID());
-                    stmt.setLong(6, file.getSize());
-               }else{ //has parent
-                    sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size, parentID) VALUES (?, ?, ?, ?, ?, ?, ?)";
-                    stmt = connection.prepareStatement(sql);
-                    stmt.setInt(1, file.getFileID());
-                    stmt.setString(2, file.getName());
-                    stmt.setString(3, file.getPath());
-                    stmt.setBoolean(4, file.isFolder());
-                    stmt.setInt(5, file.getDriveID());
-                    stmt.setLong(6, file.getSize());
-                    stmt.setInt(7, file.getParentID());
-               }
-               rows = stmt.executeUpdate();
-          }catch(Exception e){
-               e.printStackTrace();
-          }
-          return "Inserted file: " + file.getName();
      }
 
      /**
