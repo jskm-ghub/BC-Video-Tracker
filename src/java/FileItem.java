@@ -8,7 +8,7 @@
         - path : String (path in the drive)
         - isFolder: boolean
         - driveID : int (Foreign Key reference to drives Table)
-        - size : int (long?) (file size (not 100% necessary))
+        - size : long (file size (not 100% necessary, but was ultimately adopted))
         - parentID: int (parent folder ID( in between string or int))
     • Methods:
         ◦ + FileItem(name : String, path : String, type : String, driveId : int, size : long, parentId : creates a new item that represents a file/folder
@@ -28,12 +28,12 @@ public class FileItem {
     //False means the item object is a file; true is a folder
     private boolean isFolder;
     private int driveID;
-    // TODO: Contradictory documentation given; I think this should be a long?
-    private Long size;
+    // this is a long; verified!
+    private long size;
     private int parentID;
 
     /**
-     * Constructor for a FileItem object, including the optional size variable.
+     * Constructor for a FileItem object, including the size variable.
      * @param fileID the integer ID of the file, as used in SQL fileItem table
      * @param name the filename (e.g. "QuidHocEst.jpg")
      * @param path the full file/directory path of this (e.g. "/drive2/thing/")
@@ -41,7 +41,7 @@ public class FileItem {
      * if it represents a file
      * @param driveID the integer ID of the drive that this file/folder is on,
      * as used in the SQL drive table
-     * @param size the (optional) size of this file/folder, as a long integer
+     * @param size the size of this file/folder, as a long integer
      * @param parentID the integer ID of the parent folder of this file/folder
      * (as used in the SQL fileItem table)
      */
@@ -55,24 +55,7 @@ public class FileItem {
         this.parentID = parentID;
     }
 
-    /* Since the size wasn't considered 100% necessary, I thought I'd give an option to make without it */
-    /**
-     * Constructor for a FileItem object, without the optional size variable.
-     * In this, this.size is set to null to avoid errors when returning it.
-     * 
-     * See the other constructor for more information.
-     */
-    public FileItem(int fileID, String name, String path, boolean isFolder, int driveID, int parentID) {
-        this.fileID = fileID;
-        this.name = name;
-        this.path = path;
-        this.isFolder = isFolder;
-        this.driveID = driveID;
-        // TODO: Is the below strictly necessary? May be null already
-        this.size = null;
-        this.parentID = parentID;
-    }
-
+    
     /* getters (I can't think of a reason for any setters other than for size since all fields are required to begin with and changing a file/folder entity midway through seems like a bad idea!) */
     /**
      * returns the fileID field as noted.
@@ -120,7 +103,7 @@ public class FileItem {
         return this.parentID;
     }
     /**
-     * Sets the size field of this FileItem (especially if it isn't yet)
+     * Sets the size field of this FileItem
      * @param size the new size.
      */
     public void setSize(long size) {
