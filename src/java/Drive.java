@@ -94,29 +94,21 @@ public class Drive {
     }
     //no setter necessary since the folder is either known on creation (if used when scanning drive) or not used at all)
 
-    /**
-     * Returns a string containing the driveSerialName and driveDisplayName 
-     * attributes ONLY.
-     * If it is certain that driveID has been set for this object, and that 
-     * field is desired, use <code>toStringWithID()</code> instead.
-     */
-    public String toString() {
-        StringBuilder outputBuilder = new StringBuilder("Drive(");
-        outputBuilder.append(this.driveSerialName);
-        outputBuilder.append(", ");
-        outputBuilder.append(this.driveDisplayName);
-        outputBuilder.append(")");
-        return outputBuilder.toString();
-    }
 
     /**
      * Returns a string containing the driveID, driveSerialName, and 
      * driveDisplayName attributes.
-     * Beware of trying to call this if the driveID hasn't been set yet!!
+     * If the driveID is 0, this indicates that it has not been set yet
+     * (since it is auto-initialized to 0, and otherwise should not be 0,
+     * since SQL auto-increment begins at 1). 
      */
-    public String toStringWithID() { //TODO: remove and handle this in the toString (toString is called by println())
+    public String toString() {
         StringBuilder outputBuilder = new StringBuilder("Drive(");
-        outputBuilder.append(this.driveID);
+        if (this.driveID != 0) {
+            outputBuilder.append(this.driveID);
+        } else {
+            outputBuilder.append("[driveID not set/0]");
+        }
         outputBuilder.append(", ");
         outputBuilder.append(this.driveSerialName);
         outputBuilder.append(", ");
