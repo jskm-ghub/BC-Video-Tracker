@@ -145,21 +145,22 @@ public class DBManager{
                     if(rs2.next()){
                          driveId = rs2.getInt("driveID");
                     }
-               }else{ //drive already exists, wipe existing fileItems under that driveID and rescan drive for files to update database
-                    System.out.println("Drive with serial name " + serialName + " already exists in database.");
-                    
+               }
+               else
+               { //drive already exists, wipe existing fileItems under that driveID and rescan drive for files to update database
                     sql = "SELECT driveID FROM drive WHERE driveSerialName = '" + serialName + "';";
                     stmt = connection.prepareStatement(sql);
                     ResultSet rs2 = stmt.executeQuery();
-                    driveId = 0;
-                    if(rs2.next()){
+                    if(rs2.next())
+                    {
                          driveId = rs2.getInt("driveID");
                     }
                     sql = "DELETE FROM fileItem WHERE driveID = " + driveId + ";";
                     stmt = connection.prepareStatement(sql);
                     rows = stmt.executeUpdate();
                }
-          }catch(Exception e){
+          }catch(Exception e)
+          {
                e.printStackTrace();
           }
           drive.setDriveID(driveId);
@@ -167,7 +168,8 @@ public class DBManager{
           /* Scan Drive for files and add to database Individually */
           /* For testing, comment lines 178 through 180 */
           List<FileItem> files = ds.scan(drive);
-          for (FileItem file : files) {
+          for (FileItem file : files)
+          {
                System.out.println(file.toString());
                insertFile(file);
           }
@@ -223,7 +225,7 @@ public class DBManager{
                e.printStackTrace();
           }finally{
                try{
-                    connection.setAutoCommit(true);
+                    connection.setAutoCommit(true); // TODO: you never set it to false, which i think you intended to, fyi
                }catch(Exception ex){
                     ex.printStackTrace();
                }
@@ -242,7 +244,6 @@ public class DBManager{
           try{
                String sql = "";
                PreparedStatement stmt;
-               System.out.println("Parent ID: " + file.getParentID());
                if(file.getParentID() == -1){ //no parent
                     sql = "INSERT INTO fileItem (fileIdWithinDrive, name, path, isFolder, driveID, size) VALUES (?, ?, ?, ?, ?, ?)";
                     stmt = connection.prepareStatement(sql);

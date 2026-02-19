@@ -37,9 +37,6 @@ CREATE TABLE `fileItem` (
   PRIMARY KEY (`fileIdWithinDrive`, `driveID`),
   CONSTRAINT `fKeyDriveID`
   FOREIGN KEY (`driveID`) REFERENCES `drive` (`driveID`)
-  ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT `fKeySameTableParentID`
-  FOREIGN KEY (`parentID`) REFERENCES `fileItem` (`fileIdWithinDrive`)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 

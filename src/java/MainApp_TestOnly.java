@@ -31,5 +31,37 @@ public class MainApp_TestOnly {
     public static void main(String[] args) {
         new MainApp_TestOnly(); 
     }
+
+    // this was in drive scanner
+    /*
+    * public static void main(String[] args) {
+    DriveScanner scanner = new DriveScanner();
+
+    System.out.println("Detecting drives...");
+    boolean found = scanner.detectDrives();
+
+    if (!found) {
+        System.out.println("No drives detected.");
+        return;
+    }
+
+    System.out.println("Drives detected: " + scanner.getDetectedDrives().size());
+
+    for (Drive drive : scanner.getDetectedDrives()) {
+        System.out.println("\n===== DRIVE =====");
+        System.out.println("Display Name: " + drive.getDisplayName());
+        System.out.println("Serial: " + drive.getSerialName());
+
+        System.out.println("Scanning files...");
+        List<FileItem> items = scanner.scan(drive);
+
+        System.out.println("Files found: " + items.size());
+
+        // Print first 10 items using toString()
+        for (int i = 0; i < Math.min(10, items.size()); i++) {
+            System.out.println("  " + items.get(i).toString());
+        }
+    }
+}*/
 }
 
