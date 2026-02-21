@@ -115,7 +115,8 @@ public class DriveScanner {
                     if (mountsLine.contains("/media/")) {
                         //lines are formatted as e.g. "/dev/sdd1 /run/media/USERNAME/USB20FD vfat ..." so get the second thing, assuming whitespace separator.
                         String mountPt = mountsLine.split("\\s+")[1];
-                        System.out.println("found media device directory: " + mountPt);
+                        // whitespaces in device name are "\040", these must be resolved back to whitespaces before making a File out of them
+                        mountPt = mountPt.replace("\\040", " ");
                         
                         File mediaDevice = new File(mountPt);
                         if (mediaDevice.exists()) { //don't add nonexistent thing (shouldn't happen)
