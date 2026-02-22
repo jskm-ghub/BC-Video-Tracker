@@ -12,7 +12,5 @@ Features:
      - Provides file search
 
 Team Members:
-     Luca Nicotra
-     Nathanael Leopold
-     Nima Samadian
-     James Krishnan Myjak
+     Nathanael Leopold, James Krishnan Myjak, Luca Nicotra, Nima Samadian
+     
