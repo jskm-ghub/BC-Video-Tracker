@@ -66,7 +66,11 @@ public class DriveScanner {
                     fsv.getSystemTypeDescription(root).toLowerCase().contains("usb"))) {
 
                     String serial = getSerialWindows(root);
-                    String displayName = root.getName();
+                    String displayName = fsv.getSystemDisplayName(root);
+
+                    if (displayName == null || displayName.isEmpty()) {
+                        displayName = root.getAbsolutePath();
+                    }
                     Drive drive = new Drive(serial, displayName, root);
                     detectedDrives.add(drive);
                 }
@@ -317,8 +321,13 @@ public class DriveScanner {
 
         // Theoretically, root could be null. But scan() is only called in this way: UIController -> DriveScanner.getDetectedDrives called to get list; then -> DBManager.insertDrive() called with each of these drives, which in turn -> DriveScanner.scan() called with drive. So it shouldn't ever be null.
         if (root.exists() && root.isDirectory()) {
-            fileStack.push(root);
-            parentStack.push(-1); // root has no parent
+            File[] children = root.listFiles(file -> !file.isHidden());
+            if (children != null) {
+                for (File child : children) {
+                    fileStack.push(child);
+                    parentStack.push(-1); // root has no parent
+                }
+            }
         }
 
         while (!fileStack.isEmpty()) {
@@ -326,11 +335,21 @@ public class DriveScanner {
             int parentId = parentStack.pop();
 
             boolean isFolder = current.isDirectory();
+            String rootPath = drive.getDriveRootFolder().getAbsolutePath();
+            String fullPath = current.getAbsolutePath();
+            String name = current.getName(); 
+            String relativePath;
+            if (fullPath.equals(rootPath)) {
+                relativePath = ""; // root
+            } else {
+                relativePath = fullPath.substring(rootPath.length());
+            }
+            relativePath = relativePath.replaceFirst("^[/\\\\]", ""); // remove leading slash
 
             FileItem item = new FileItem(
                     fileIDCounter++,
-                    current.getName(),
-                    current.getAbsolutePath(),
+                    name,
+                    relativePath,
                     isFolder,
                     drive.getDriveID(),
                     0L,
