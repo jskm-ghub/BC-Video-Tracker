@@ -68,6 +68,10 @@ public class DriveScanner {
                     String serial = getSerialWindows(root);
                     String displayName = fsv.getSystemDisplayName(root);
 
+
+                    if(displayName != null && displayName.contains(" (")) { 
+                        displayName = displayName.substring(0, displayName.indexOf("(")).trim(); 
+                    }
                     if (displayName == null || displayName.isEmpty()) {
                         displayName = root.getAbsolutePath();
                     }
