@@ -171,45 +171,48 @@ public class DriveScanner {
     */
     // WINDOWS
     private String getSerialWindows(File drive)
+{
+    try
     {
-        try
-        {
-            // Extracts drive letter (ex: "C")
-            String driveLetter = drive.getAbsolutePath().substring(0, 1);
+        String driveLetter = drive.getAbsolutePath().substring(0, 1);
 
-            // Powershell script to get the disk serial no.
-            String psScript =
-                "$dl = '" + driveLetter + "';" +
-                "$part = Get-Partition -DriveLetter $dl;" +
-                "if ($part -eq $null) { 'NO_DISK_NUMBER' } else {" +
-                    "$diskNum = $part.DiskNumber;" +
-                    "Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $diskNum } | " +
-                    "Select -ExpandProperty SerialNumber" +
-                "}";
+        String psScript =
+            "$dl = '" + driveLetter + "';" +
+            "$part = Get-Partition -DriveLetter $dl;" +
+            "if ($part -eq $null) { 'NO_DISK' } else {" +
+                "$disk = Get-Disk -Number $part.DiskNumber;" +
+                "$pnp = (Get-CimInstance Win32_DiskDrive | " +
+                "Where-Object { $_.Index -eq $disk.Number }).PNPDeviceID;" +
+                "if ($pnp) {" +
+                    "$pnp.Split('\\')[-1]" +  
+                "} else { 'NO_SERIAL' }" +
+            "}";
 
-            // Prepares the PowerShell process
-            ProcessBuilder builder = new ProcessBuilder("powershell", "-Command", psScript);
+        ProcessBuilder builder = new ProcessBuilder("powershell", "-Command", psScript);
+        builder.redirectErrorStream(true);
+        Process process = builder.start();
 
-            // Combines the error and out message so both come through as just one text line
-            builder.redirectErrorStream(true);
+        BufferedReader reader = new BufferedReader(
+            new InputStreamReader(process.getInputStream())
+        );
 
-            Process process = builder.start();
+        String output = reader.readLine();
+        process.waitFor();
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-            String output = reader.readLine();
-            process.waitFor();    // this is for Java to wait until Powershell is completely done.
-
-            if (output != null) {
-                output = output.trim();
-                if (!output.isEmpty() && !output.equalsIgnoreCase("NO_DISK_NUMBER")) {
-                    return output;
-                }
-            }
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        if (output != null) {
+            output = output.trim();
+            // Method works and gets a correct serial number, however, Windows PNPDeviceID adds a tail segemnt, this if statement removes it.
+            if (output.contains("&")) {
+                output = output.substring(0, output.indexOf("&"));
         }
+            if (!output.isEmpty() && !output.equalsIgnoreCase("NO_DISK") && !output.equalsIgnoreCase("NO_SERIAL")) {
+                return output;
+            }
+        }
+
+    } catch (Exception ex) {
+        ex.printStackTrace();
+    }
 
     return "UNKNOWN_WIN";
 }
