@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Stack;
 import java.util.ArrayList;
 import javax.swing.filechooser.FileSystemView;
+import java.nio.file.Files;
+import java.nio.file.attribute.DosFileAttributes;
+
 
 
 /**
@@ -310,6 +313,24 @@ public class DriveScanner {
     }
 
     /**
+     * Determines if a file shpould be skipped during scanning. This is used to ignore hidden and system files.
+     * On Windows, it uses {@link DosFilesAttributes}, for the other OS it uses {@link File#isHidden()} as a fallback. 
+     * Files that can't be read will be skipped.
+     * @param file the file to check
+     * @return true if the file should be skipped, false otherwise
+     */
+    private boolean shouldSkip(File file) {
+        try{
+            java.nio.file.attribute.DosFileAttributes atrbs = Files.readAttributes(file.toPath(),DosFileAttributes.class);
+            return atrbs.isHidden() || atrbs.isSystem();
+        } catch (UnsupportedOperationException e) {
+            return file.isHidden(); // fallback for non-Windows systems
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    /**
     * Scans the given drive and returns a list of FileItem objects representing
     * all files and directories found on the drive.
     *
@@ -328,7 +349,7 @@ public class DriveScanner {
 
         // Theoretically, root could be null. But scan() is only called in this way: UIController -> DriveScanner.getDetectedDrives called to get list; then -> DBManager.insertDrive() called with each of these drives, which in turn -> DriveScanner.scan() called with drive. So it shouldn't ever be null.
         if (root.exists() && root.isDirectory()) {
-            File[] children = root.listFiles(file -> !file.isHidden());
+            File[] children = root.listFiles(file -> ! shouldSkip(file));
             if (children != null) {
                 for (File child : children) {
                     fileStack.push(child);
@@ -365,7 +386,7 @@ public class DriveScanner {
             items.add(item);
 
             if (isFolder) {
-                File[] children = current.listFiles(file -> !file.isHidden()); // thi will ignore hidden files
+                File[] children = current.listFiles(file -> ! shouldSkip(file)); // this will ignore hidden files
                 if (children != null) {
                     for (File child : children) {
                         fileStack.push(child);
