@@ -103,6 +103,27 @@ public class DBManager{
      }
 
      /**
+      * Deletes a drive from the database
+      * Database function will cascade deletions to all files under that driveID
+      * @param drive Drive object to delete
+      */
+     public void deleteDrive(Drive drive){
+          try{
+               String sql = "DELETE FROM drive WHERE driveID = ?;";
+               PreparedStatement stmt = connection.prepareStatement(sql);
+               stmt.setInt(1, drive.getDriveID());
+               int rowsDeleted = stmt.executeUpdate();
+               if(rowsDeleted > 0){
+                    System.out.println("Drive deleted successfully.");
+               }else{
+                    System.out.println("Error with drive deletion.");
+               }
+          }catch(Exception e){
+               e.printStackTrace();
+          }
+     }
+
+     /**
       * Inserts a drive into the database if it doesn't already exist.
       * If drive already exists, wipes existing fileItems under that driveID and rescans drive for files to update database
       * Calls insertFile() for each file found on the drive to add to the database
