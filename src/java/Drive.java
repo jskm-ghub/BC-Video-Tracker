@@ -26,7 +26,8 @@ public class Drive {
      * @param serialName the serial number of the drive (should be unique!)
      * @param displayName the name of the drive as displayed on a file browser
      */
-    public Drive(String serialName, String displayName) {
+    public Drive(int driveId, String serialName, String displayName) {
+        this.driveID = driveId;
         driveSerialName = serialName;
         driveDisplayName = displayName;
         driveRootFolder = null;

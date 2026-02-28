@@ -26,27 +26,30 @@ import javax.json.stream.JsonParser;
 public class DBManager{
           
      // Database details, retrieved from encrypted file
-     int dbPort = 3306;
-     String decryptedJson = "";
-     String host = "";
-     String dbName = "";
-     String dbUser = "";
-     String dbPass = "";
-     
-     Connection connection; //JDBC connection to MySQL database
-     DriveScanner ds;
+     private final int dbPort = 3306;
+     private final String host = "bc-marketingvideotracker.benedictine.edu";
+     private final String dbName = "videoschema_db";
+     private final String SECRET = "BCRAVENS12345678"; // This needs to match the SECRET attribute in Encryptor
+     private final String CRED_DELIMITER = "<:>"; // This needs to match the CRED_DELIMITER in Encryptor
+     private String dbUser, dbPass;
+
+     private Connection connection; //JDBC connection to MySQL database
+     private DriveScanner ds;
 
      /**
       * Constructor
+      * @param scanner
       */
      public DBManager(DriveScanner scanner)
      {
+          this.dbUser = "";
+          this.dbPass = "";
+          this.ds = scanner;
+
           /* Ignore unless re-encryption is necessary; Encrypts ingored credentials.json file */
           // Encryptor.encryptFile("src/secure/credentials.json","src/secure/EncryptedCredentials.enc","BCRAVENS12345678");
 
-          this.ds = scanner;
-          decryptedJson = decryptFile("src/secure/EncryptedCredentials.enc","BCRAVENS12345678");
-          parseJson(decryptedJson);
+          decryptDbCredentials();
           System.out.println("Credentials decrypted and parsed successfully.");
           connectDatabase();
      }
@@ -55,7 +58,8 @@ public class DBManager{
       * Connects directly to MySQL database through port 3306.
       * Uses credentials previously decrypted
       */
-     private void connectDatabase(){
+     private void connectDatabase()
+     {
           String dburl = "jdbc:mysql://" + host + ":" + dbPort + "/" + dbName
                     + "?useSSL=true"
                     + "&requireSSL=true"
@@ -63,40 +67,48 @@ public class DBManager{
                     + "&rewriteBatchedStatements=true"
                     + "&connectTimeout=5000"
                     + "&socketTimeout=5000";
-          try{
+          try
+          {
                System.out.println("Connecting to database...");
                connection = DriverManager.getConnection(dburl, dbUser, dbPass);
-               if(connection != null){
-                    System.out.println("Database connected successfully.");
-               }else{
-                    System.out.println("Failed to connect to database.");
+               if(connection == null)
+               {
+                    UIController.displayDataMessage("Error: Failed to Connect to DB. Please check connectivity to BC Network");
                }
-          }catch(Exception e){
+               else
+               {
+                    System.out.println("Database connected successfully.");
+               }
+          }catch(Exception e)
+          {
+               UIController.displayDataMessage("Error: Failed to Connect to DB. Please check connectivity to BC Network");
                e.printStackTrace();
           }
      }
 
      /**
-      * Retrieves a list of all drives from the database
-      * @return List of Drive objects
+      * Retrieves a map of all drives from the database
+      * @return Map of Drive objects indexed by their DB ID
       */
-     public List<Drive> getDrives(){
-          List<Drive> drives = new ArrayList<>();
-          try{
+     public Map<Integer, Drive> getDrives(){
+          Map<Integer, Drive> drives = new HashMap<>();
+          try
+          {
                String sql = "SELECT * FROM drive";
                PreparedStatement query = connection.prepareStatement(sql);
                ResultSet rs = query.executeQuery();
 
-               while(rs.next()){
+               while(rs.next())
+               {
                     int id = rs.getInt("driveID");
                     String serialName = rs.getString("driveSerialName");
                     String driveName = rs.getString("driveDisplayName");
 
-                    Drive d = new Drive(serialName, driveName);
-                    d.setDriveID(id);
-                    drives.add(d);
+                    Drive d = new Drive(id, serialName, driveName);
+                    drives.put(id, d);
                }
-          }catch(Exception e){
+          }catch(Exception e)
+          {
                e.printStackTrace();
           }
           return drives;
@@ -118,7 +130,8 @@ public class DBManager{
                }else{
                     System.out.println("Error with drive deletion.");
                }
-          }catch(Exception e){
+          }catch(Exception e)
+          {
                e.printStackTrace();
           }
      }
@@ -129,17 +142,16 @@ public class DBManager{
       * Calls insertFile() for each file found on the drive to add to the database
       * 
       * @param drive Drive object to insert
-      * @return String confirmation message
       */
-     public String insertDrive(Drive drive) {
+     public void insertDrive(Drive drive)
+     {
           /* check database for existing driveSerialName */
           String driveName = drive.getDisplayName();
           String serialName = drive.getSerialName();
           PreparedStatement stmt;
-          String sql = "";
+          String sql;
           ResultSet rs = null;
           int driveId = 0;
-          int rows = 0;
           try{
                sql = "SELECT * FROM drive WHERE driveSerialName = ?;";
                stmt = connection.prepareStatement(sql);
@@ -158,7 +170,7 @@ public class DBManager{
                     stmt = connection.prepareStatement(sql);
                     stmt.setString(1, serialName);
                     stmt.setString(2, driveName);
-                    rows = stmt.executeUpdate();
+                    stmt.executeUpdate();
                     sql = "SELECT driveID FROM drive WHERE driveSerialName = '" + serialName + "';";
                     stmt = connection.prepareStatement(sql);
                     ResultSet rs2 = stmt.executeQuery();
@@ -178,39 +190,37 @@ public class DBManager{
                     }
                     sql = "DELETE FROM fileItem WHERE driveID = " + driveId + ";";
                     stmt = connection.prepareStatement(sql);
-                    rows = stmt.executeUpdate();
+                    stmt.executeUpdate();
                }
           }catch(Exception e)
           {
+               UIController.displayDataMessage("Error: Failed to Insert Drive into Database -> " + drive.getDisplayName());
                e.printStackTrace();
           }
           drive.setDriveID(driveId);
 
           /* Insert files as a batch */
-          /* For testing, uncomment lines below and comment lines above */
-          List<FileItem> files = ds.scan(drive);
-          batchInsertFiles(files);
-          return "Batch Inserted;";
-          
+          batchInsertFiles(ds.scan(drive));
      }
 
      /**
       * Inserts a list of FileItems into the database as a batch for efficiency.
       * @param files List of FileItem objects to insert
       */
-     private void batchInsertFiles(List<FileItem> files){
-
+     private void batchInsertFiles(List<FileItem> files)
+     {
           String sql = "INSERT INTO fileItem " +
                "(fileIdWithinDrive, name, path, isFolder, driveID, size, parentID) " +
                "VALUES (?, ?, ?, ?, ?, ?, ?)";
           PreparedStatement stmt = null;
 
-          try{
+          try
+          {
                connection.setAutoCommit(false);
                stmt = connection.prepareStatement(sql);
 
-               for(FileItem file : files){
-
+               for(FileItem file : files)
+               {
                     stmt.setInt(1, file.getFileID());
                     stmt.setString(2, file.getName());
                     stmt.setString(3, file.getPath());
@@ -218,31 +228,39 @@ public class DBManager{
                     stmt.setInt(5, file.getDriveID());
                     stmt.setLong(6, file.getSize());
 
-                    if(file.getParentID() == -1){
+                    if(file.getParentID() == -1)
+                    {
                          stmt.setNull(7, java.sql.Types.INTEGER);
-                    }else{
+                    }
+                    else
+                    {
                          stmt.setInt(7, file.getParentID());
                     }
                
                     stmt.addBatch();
                }
 
-          stmt.executeBatch();
-          connection.commit();
-
-          }catch(Exception e){
-               try{
+               stmt.executeBatch();
+               connection.commit();
+               UIController.displayDataMessage("Drive Update Successful");
+          } catch(Exception e)
+          {
+               UIController.displayDataMessage("Error: Failed to Properly Update Drive");
+               try
+               {
                     connection.rollback();
-               }catch(Exception ex){
+               }catch(Exception ex)
+               {
                     ex.printStackTrace();
                }
                e.printStackTrace();
-
-          }finally{
-               try{
+          } finally
+          {
+               try
+               {
                     connection.setAutoCommit(true);
                     if(stmt != null) stmt.close();
-               }catch(Exception ex){
+               } catch(Exception ex){
                     ex.printStackTrace();
                }
           }
@@ -279,8 +297,7 @@ public class DBManager{
                String sql = "SELECT * FROM fileItem WHERE driveID = ? AND parentID = ?";
                PreparedStatement query = connection.prepareStatement(sql);
                query.setInt(1, driveId);
-               query.setInt(2, f.getFileID()); 
-               System.out.println("Displaying files under parent ID: " + f.getFileID());
+               query.setInt(2, f.getFileID());
                ResultSet rs = query.executeQuery();
 
                /* parse results of query and create list of fileItems */
@@ -337,68 +354,30 @@ public class DBManager{
      }
 
      /**
-      * Decrypts login credentials for server and MySQL
-      * @param filePath relative path of .enc file
-      * @param secret key used in encryption of file
-      * @return json string of credentials
+      * Decrypts DB credentials and passes their values into the proper attributes
       */
-     private static String decryptFile(String filePath, String secret) {
-          byte[] decryptedBytes = new byte[0];
-          try{
-               byte[] keyBytes = secret.getBytes();
+     private void decryptDbCredentials()
+     {
+          try
+          {
+               byte[] keyBytes = SECRET.getBytes();
                SecretKey key = new SecretKeySpec(keyBytes, "AES");    
                Cipher cipher = Cipher.getInstance("AES");
-     
-               cipher.init(Cipher.DECRYPT_MODE, key);  
-               byte[] encryptedBytes = Base64.getDecoder().decode(
-                       Files.readAllBytes(Paths.get(filePath))); 
-               decryptedBytes = cipher.doFinal(encryptedBytes);     
-          }catch(Exception e){
-               e.printStackTrace();
-          }
-          return new String(decryptedBytes);
-     }
+               cipher.init(Cipher.DECRYPT_MODE, key);
 
-     /**
-      * Parses through Json string of login credentials.
-      * Assigns values to global variables.
-      * @param json String of Json values
-      */
-     private void parseJson(String json){
-          JsonParser parser = Json.createParser(new StringReader(json));
-          String currentKey = "";
-          String value = "";
-          try{
-               while(parser.hasNext()){
-                    JsonParser.Event event = parser.next();
-                    switch (event) {
-
-                         case KEY_NAME:
-                              currentKey = parser.getString();
-                              break;     
-                         case VALUE_STRING:
-                              value = parser.getString();
-
-                         switch (currentKey) {
-                              case "host":
-                                   host = value;
-                                   break;
-                              case "dbName":
-                                   dbName = value;
-                                   break;
-                              case "dbUser":
-                                   dbUser = value;
-                                   break;
-                              case "dbPass":
-                                   dbPass = value;
-                                   break;
-                         }
-                         break;
-                         default:
-                         break;
-                    }
+               try(InputStream fileIn = UIController.class.getResourceAsStream("/EncryptedCredentials.txt"))
+               {
+                   if(fileIn != null)
+                   {
+                        byte[] encryptedBytes = Base64.getDecoder().decode(fileIn.readAllBytes());
+                        byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
+                        String[] decryptedCredentials = new String(decryptedBytes).split(CRED_DELIMITER);
+                        dbUser = decryptedCredentials[0];
+                        dbPass = decryptedCredentials[1];
+                   }
                }
-          }catch(Exception e){
+          }catch(Exception e)
+          {
                e.printStackTrace();
           }
      }
@@ -432,7 +411,9 @@ public class DBManager{
                }
                searchResults.close();
                prepdSearchStmt.close();
-          } catch (SQLException sqle) {
+          } catch (SQLException sqle)
+          {
+               UIController.displayDataMessage("Error: Search has failed");
                sqle.printStackTrace(System.err);
           }
           

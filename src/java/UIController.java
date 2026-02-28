@@ -23,6 +23,8 @@ import java.awt.event.MouseListener;
 import java.awt.Point;
 
 // Utilities
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Stack;
 import java.util.List;
 
@@ -65,6 +67,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
     /* ~~~~~ FILE NAVIGATION ~~~~~ */
     private final Stack<FileItem> path; // holds the file path in the order that we have descended into the drive
     private Drive currentDrive;
+    private Map<Integer, Drive> mapDrives; // all the drives, but mapped by their ID for easy lookup during searches
     private List<Drive> listDrives; // all the drives in the system
     private List<FileItem> listFiles; // all the files in whatever drive we are looking at
 
@@ -102,7 +105,8 @@ public class UIController extends JPanel implements ActionListener, MouseListene
         driveArea = new Rectangle();
 
         // initialize specific variables
-        listDrives = dbm.getDrives();
+        mapDrives = dbm.getDrives();
+        listDrives = new ArrayList<>(mapDrives.values());
         path = new Stack<>();
         resetToHome();
 
@@ -118,7 +122,6 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             public void windowClosing(WindowEvent e)
             {
                 // everything that needs to happen on shutdown
-                // TODO: anything else need to be done on shutdown?
                 database.closeConnection();
                 window.dispose();
                 System.exit(0);
@@ -263,10 +266,26 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 }
                 //truncate down the file name and path name if necessary, then render them in the file area
                 g.drawString(getTruncatedString(listFiles.get(step + localScrollFilePos).getName(), fileNameWidth, g), (int)fileArea.getX(), (int)fileArea.getY() + fileTextFontSize + step*(fileHeight + fileSpacing));
-                g.drawString(getTruncatedString(listFiles.get(step + localScrollFilePos).getPath(), (int)(fileArea.getWidth() - (fileNameWidth + spacing)), g), (int)fileArea.getX() + fileNameWidth + spacing, (int)fileArea.getY() + fileTextFontSize + step*(fileHeight + fileSpacing));
+                g.drawString(getTruncatedString(getTrueFilePath(listFiles.get(step + localScrollFilePos)), (int)(fileArea.getWidth() - (fileNameWidth + spacing)), g), (int)fileArea.getX() + fileNameWidth + spacing, (int)fileArea.getY() + fileTextFontSize + step*(fileHeight + fileSpacing));
             }
         }
         else {scrollFilePos = 0;/* if no files, then set scroll to 0 so we don't jump to the bottom of the list when files appear */}
+    }
+
+    /**
+     * Returns the path of a file as it ought to appear to the user -> Drive Name : path relative to the location of the drive in the system
+     * @param file the file for which the path is determined
+     * @return the file's path
+     */
+    private String getTrueFilePath(FileItem file)
+    {
+        if(searching)
+        {
+            // if we are searching, we must use the map to determine which drive the file is under
+            return mapDrives.get(file.getDriveID()).getDisplayName() + ":" + file.getPath();
+        }
+        // otherwise, we can use the currentDrive attribute, which we know to be the drive we are navigating within
+        return currentDrive.getDisplayName() + ":" + file.getPath();
     }
 
     /**
@@ -448,7 +467,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             int refresh = JOptionPane.showConfirmDialog(null, "Refresh Connection to Database?\n(this will take you back to [Select Drive])", "Refresh Database Connection", JOptionPane.OK_CANCEL_OPTION);
             if(refresh == JOptionPane.OK_OPTION)
             {
-                listDrives = database.getDrives();
+                obtainDriveSets();
                 resetToHome();
             }
         }
@@ -476,7 +495,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                     if (updateDB == JOptionPane.YES_OPTION)
                     {
                         database.insertDrive(connectedDrives.get(driveIndex));
-                        listDrives = database.getDrives();
+                        obtainDriveSets();
                     }
                 }
             }
@@ -498,16 +517,31 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             int holdTopPosDrive = (int)(driveArea.getY() + clickRelativePositionInDriveList*(driveHeight + fileSpacing));
             if(holdMouseYPos >= holdTopPosDrive && holdMouseYPos <= (holdTopPosDrive + driveHeight))
             {
-                // indeed have clicked on a drive
+                // indeed have clicked on a drive that exists
                 if(clickRelativePositionInDriveList >= 0 && !(listDrives == null) && clickRelativePositionInDriveList < listDrives.size())
                 {
-                    // actually clicked on a drive that exists
                     currentDrive = listDrives.get(clickRelativePositionInDriveList + scrollDrivePos);
-                    listFiles = database.getFiles(currentDrive);
-                    path.clear();
-                    pathText = currentDrive.getDisplayName() + " : ";
-                    searching = false;
-                    searchBarText = "";
+                    if(e.getButton() == MouseEvent.BUTTON3)
+                    {
+                        // right click
+                        int deleteDrive = JOptionPane.showConfirmDialog(null, "Confirm Deletion of Drive: \n" + currentDrive.getDisplayName() + "\nWARNING: This action cannot be undone!", "Delete Drive", JOptionPane.YES_NO_OPTION);
+                        if (deleteDrive == JOptionPane.YES_OPTION)
+                        {
+                            database.deleteDrive(currentDrive);
+                            resetToHome();
+                            obtainDriveSets();
+                        }
+                    }
+                    else
+                    {
+                        // presumed left click
+                        listFiles = database.getFiles(currentDrive);
+                        path.clear();
+                        pathText = currentDrive.getDisplayName() + " : ";
+                        searching = false;
+                        searchBarText = "";
+                    }
+
                 }
             }
         }
@@ -524,14 +558,13 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 if(clickRelativePositionInFileList >= 0 && !(listFiles == null) && clickRelativePositionInFileList < listFiles.size())
                 {
                     // actually clicked a file that exists
-                    FileItem holdFile = listFiles.get(clickRelativePositionInFileList + scrollFilePos);
-                    System.out.println(holdFile.getName() + " has id of: " + holdFile.getFileID() + " and parent of " + holdFile.getParentID() + " and is folder:" + holdFile.isFolder());
-                    if(holdFile.isFolder())
+                    FileItem clickedFile = listFiles.get(clickRelativePositionInFileList + scrollFilePos);
+                    if(clickedFile.isFolder())
                     {
                         // only folders can truly be entered
-                        path.add(holdFile);
-                        listFiles = database.getFiles(currentDrive, holdFile);
-                        pathText += holdFile.getName() + "/";
+                        path.add(clickedFile);
+                        listFiles = database.getFiles(currentDrive, clickedFile);
+                        pathText += clickedFile.getName() + "/";
                     }
                 }
             }
@@ -558,7 +591,7 @@ public class UIController extends JPanel implements ActionListener, MouseListene
             else if(key >= 32 && key <= 126)
             {
                 // normal input
-                // TODO: ok that single and double quote, along with tilde thing and backwards quote not being able to be pressed is ok?
+                // pressing single quote, double quote, tilde thing, or backwards quote do not register
                 searchBarText += e.getKeyChar();
             }
             else if(key == 8 && !searchBarText.isEmpty())
@@ -625,6 +658,27 @@ public class UIController extends JPanel implements ActionListener, MouseListene
                 scrollDrivePos += e.getWheelRotation();
             }
         }
+    }
+
+    /**
+     * Opens an independent window for displaying success/failure messages to the user; use case for calls outside UIController
+     * @param message the message to display to the user
+     */
+    public static void displayDataMessage(String message)
+    {
+        JOptionPane.showMessageDialog(null, message);
+    }
+
+    /**
+     * Since the list of drives needs to be ordered and indexable, a list is required.
+     * Since the list of drives needs to be mapped by ID, a map is required
+     * This method sets both the list and the map at the same time to avoid outdated lists
+     */
+    private void obtainDriveSets()
+    {
+        mapDrives = database.getDrives();
+        listDrives.clear();
+        listDrives.addAll(mapDrives.values());
     }
 
     // unused methods that are here because the Listeners require them to exist

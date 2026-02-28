@@ -22,5 +22,6 @@ if not exist "build\fat\com\mysql\cj\jdbc\Driver.class" (
 
 jar xf build\tempclasses.jar -C build/fat
 robocopy src\images build\fat\images /E /NFL /NDL /NJH /NJS /NC /NS /NP
+copy /Y src\lib\EncryptedCredentials.txt build\fat\
 jar cfm VideoTrackerApplication.jar MANIFEST.MF -C build/fat .
 java -jar ./VideoTrackerApplication.jar

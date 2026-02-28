@@ -32,7 +32,7 @@ public class DriveScanner {
         detectedDrives = new ArrayList<>();
     }
 
-   /**
+    /**
      * Detect all drives connected to the system, and add them to internal list.
      * This checks the OS in order to correctly find all the drives, and then
      * calls the serial fetching for that specific OS.
@@ -149,21 +149,15 @@ public class DriveScanner {
                 detectedDrives.add(drive);
             }
 
-        } else { //If none of the OS's above matched it, then who knows how to do it now. // TODO: should tell the user the problem here
-            System.err.println("Unknown operating system detected (not supported).");
+        } else
+        {
+            //If none of the OS's above matched it, then who knows how to do it now.
+            UIController.displayDataMessage("Unknown operating system detected (not supported)");
             return false;
         } 
 
-
         return !detectedDrives.isEmpty();
     }
-
-    /*
-     * Get a serial number for a drive (Checks the OS first, then calls the serial fetching for that specific OS)
-     * Removed public method because not used anywhere else.
-     */
-    //public String getDriveSerial(File drive) {...}
-
 
     /**
     * Retrieves the serial number of a drive on Windows systems
