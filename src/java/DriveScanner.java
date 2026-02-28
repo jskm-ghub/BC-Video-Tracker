@@ -15,7 +15,6 @@ import java.nio.file.attribute.DosFileAttributes;
 /**
  * The DriveScanner class is responsible for detecting connected storage drives
  * and scanning their directory structures into FileItem representations.
- * 
  * It supports Windows, macOS, and Linux by using OS-specific methods
  * to retrieve drive serial numbers.
  */
@@ -307,20 +306,21 @@ public class DriveScanner {
     }
 
     /**
-     * Determines if a file shpould be skipped during scanning. This is used to ignore hidden and system files.
-     * On Windows, it uses {@link DosFilesAttributes}, for the other OS it uses {@link File#isHidden()} as a fallback. 
+     * Determines if a file should be skipped during scanning. This is used to ignore hidden and system files.
+     * On Windows, it uses DosFilesAttributes, for the other OS it uses {@link File#isHidden()} as a fallback.
      * Files that can't be read will be skipped.
      * @param file the file to check
      * @return true if the file should be skipped, false otherwise
      */
-    private boolean shouldSkip(File file) {
+    private boolean shouldSkip(File file) {System.out.println("ing hte fileter");
         try{
-            java.nio.file.attribute.DosFileAttributes atrbs = Files.readAttributes(file.toPath(),DosFileAttributes.class);
+            DosFileAttributes atrbs = Files.readAttributes(file.toPath(),DosFileAttributes.class);
+            System.out.println("File: " + file.getName() + " is hidden: " + atrbs.isHidden() + " and is system: " + atrbs.isSystem());
             return atrbs.isHidden() || atrbs.isSystem();
-        } catch (UnsupportedOperationException e) {
-            return file.isHidden(); // fallback for non-Windows systems
-        } catch (IOException e) {
-            return true;
+//        } catch (UnsupportedOperationException e) {System.out.println("falling");
+//            return file.isHidden(); // fallback for non-Windows systems
+        } catch (IOException e) {System.out.println("dying");
+            return file.isHidden();
         }
     }
 
