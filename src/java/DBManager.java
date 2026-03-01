@@ -1,27 +1,13 @@
 // Java Libraries
 import java.sql.*;
 import java.util.*;
-import java.util.Properties;
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringReader;
 
 // Encryption
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Base64;
-
-// External Libraries
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.ChannelSftp;
-import javax.json.Json;
-import javax.json.stream.JsonParser;
-
 
 public class DBManager{
           

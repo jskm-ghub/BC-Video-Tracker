@@ -1,27 +1,25 @@
-mkdir build 2>nul
-mkdir build\fat 2>nul
-mkdir build\fat\images 2>nul
-javac -cp "src/lib/javax.json-1.1.4.jar;src/lib/javax.json-api-1.1.4.jar;src/lib/jsch-0.1.55.jar;src/lib/mysql-connector-j-8.0.33.jar" -d src/out src/java/*.java
-jar cf build\tempclasses.jar -C src/out .
+@echo off
 
-if not exist "build\fat\javax\json\Json.class" (
-    jar xf src\lib\javax.json-api-1.1.4.jar -C build/fat
-)
+:: to start clean, this deletes the build directory
+:: since the image files are not being saved this will take a little longer than the sh script
+rmdir /s /q build 2>nul
 
-if not exist "build\fat\org\glassfish\json\JsonProviderImpl.class" (
-    jar xf src\lib\javax.json-1.1.4.jar -C build/fat
-)
+:: creates the build directory
+mkdir build
+mkdir build\images
 
-if not exist "build\fat\com\jcraft\jsch\JSch.class" (
-    jar xf src\lib\jsch-0.1.55.jar -C build/fat
-)
+:: compiles java files into build folder
+javac -cp "src/lib/mysql-connector-j-8.0.33.jar" -d build src\java\*.java
 
-if not exist "build\fat\com\mysql\cj\jdbc\Driver.class" (
-    jar xf src\lib/mysql-connector-j-8.0.33.jar -C build/fat
-)
+:: copy images and credential file into build directory
+robocopy src\images build\images /E >nul
+copy /Y src\lib\EncryptedCredentials.txt build\
 
-jar xf build\tempclasses.jar -C build/fat
-robocopy src\images build\fat\images /E /NFL /NDL /NJH /NJS /NC /NS /NP
-copy /Y src\lib\EncryptedCredentials.txt build\fat\
-jar cfm VideoTrackerApplication.jar MANIFEST.MF -C build/fat .
+:: unpackages the external library into the build directory
+jar xf src\lib\mysql-connector-j-8.0.33.jar -C build
+
+:: builds the final jar file
+jar cfm VideoTrackerApplication.jar MANIFEST.MF -C build .
+
+:: runs the application
 java -jar ./VideoTrackerApplication.jar

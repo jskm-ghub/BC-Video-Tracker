@@ -1,28 +1,29 @@
 #!/bin/bash
-mkdir -p build/fat/images
-javac -cp "src/lib/javax.json-1.1.4.jar:src/lib/javax.json-api-1.1.4.jar:src/lib/jsch-0.1.55.jar:src/lib/mysql-connector-j-8.0.33.jar" -d src/out src/java/*.java
-jar cf build/tempclasses.jar -C src/out .
 
-# Extract javax.json API
-if [ ! -f build/fat/javax/json/Json.class ]; then
-    jar xf src/lib/javax.json-api-1.1.4.jar -C build/fat
-fi
+# allow bash to use !() for the remove command
+shopt -s extglob
 
-# Extract GlassFish implementation
-if [ ! -f build/fat/org/glassfish/json/JsonProviderImpl.class ]; then
-    jar xf src/lib/javax.json-1.1.4.jar -C build/fat
-fi
+# create the build folder cleanly, saving the images folder
+mkdir -p build/images
+rm -rf build/!(images)
 
-if [ ! -f build/fat/com/jcraft/jsch/JSch.class ]; then
-    jar xf src/lib/jsch-0.1.55.jar -C build/fat
-fi
+# compile all java files in src/java and put them into build folder
+# uses the mysql connector library as part of the classpath
+javac -cp "src/lib/mysql-connector-j-8.0.33.jar" -d build src/java/*.java
 
-if [ ! -f build/fat/com/mysql/cj/jdbc/Driver.class ]; then
-    jar xf src/lib/mysql-connector-j-8.0.33.jar -C build/fat
-fi
+# copies images and encrypted credentials into build folder
+# only copies changes to images
+rsync -a --delete src/images/ build/images/
+cp src/lib/EncryptedCredentials.txt build
 
-jar xf build/tempclasses.jar -C build/fat
-rsync -a --ignore-existing src/images/ build/fat/images/
-cp src/lib/EncryptedCredentials.txt build/fat
-jar cfm VideoTrackerApplication.jar MANIFEST.MF -C build/fat .
+# copies the external jar library into the final jar
+jar xf src/lib/mysql-connector-j-8.0.33.jar -C build
+
+# builds the final jar
+jar cfm VideoTrackerApplication.jar MANIFEST.MF -C build .
+
+# sets the jar to be executable
+chmod +x VideoTrackerApplication.jar
+
+# runs the newly created jar file
 java -jar ./VideoTrackerApplication.jar
