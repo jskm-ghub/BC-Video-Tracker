@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.Stack;
 import java.util.ArrayList;
 import javax.swing.filechooser.FileSystemView;
-import java.nio.file.Files;
-import java.nio.file.attribute.DosFileAttributes;
+
 
 
 
@@ -306,24 +305,32 @@ public class DriveScanner {
     }
 
     /**
-     * Determines if a file should be skipped during scanning. This is used to ignore hidden and system files.
-     * On Windows, it uses DosFilesAttributes, for the other OS it uses {@link File#isHidden()} as a fallback.
-     * Files that can't be read will be skipped.
+     * Explicityly name checks for System Volume Information files to skip (not the most ideal, however, due to nature of the app and code is the msot reliable solution for now.)
+     * Also skipps hidden and unreadable files, since these are not accessible to the user and would just cause errors if tried to be scanned.
      * @param file the file to check
      * @return true if the file should be skipped, false otherwise
      */
-    private boolean shouldSkip(File file) {System.out.println("ing hte fileter");
-        try{
-            DosFileAttributes atrbs = Files.readAttributes(file.toPath(),DosFileAttributes.class);
-            System.out.println("File: " + file.getName() + " is hidden: " + atrbs.isHidden() + " and is system: " + atrbs.isSystem());
-            return atrbs.isHidden() || atrbs.isSystem();
-//        } catch (UnsupportedOperationException e) {System.out.println("falling");
-//            return file.isHidden(); // fallback for non-Windows systems
-        } catch (IOException e) {System.out.println("dying");
-            return file.isHidden();
-        }
-    }
 
+    private boolean shouldSkip(File file) {
+        if (file == null) return true;
+
+        String name = file.getName();
+
+        // Explicit Windows system folder
+        if (name.equalsIgnoreCase("System Volume Information")) {
+            return true;
+        }
+        // Skip hidden files
+        if (file.isHidden()) {
+            return true;
+        }
+        // Skip unreadable files
+        if (!file.canRead()) {
+            return true;
+        }
+
+        return false;
+        }
     /**
     * Scans the given drive and returns a list of FileItem objects representing
     * all files and directories found on the drive.
@@ -380,7 +387,7 @@ public class DriveScanner {
             items.add(item);
 
             if (isFolder) {
-                File[] children = current.listFiles(file -> ! shouldSkip(file)); // this will ignore hidden files
+                File[] children = current.listFiles(file -> ! file.isHidden()); // this will ignore hidden files
                 if (children != null) {
                     for (File child : children) {
                         fileStack.push(child);
