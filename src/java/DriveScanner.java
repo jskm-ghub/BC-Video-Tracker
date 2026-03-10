@@ -305,8 +305,9 @@ public class DriveScanner {
     }
 
     /**
-     * Explicityly name checks for System Volume Information files to skip (not the most ideal, however, due to nature of the app and code is the msot reliable solution for now.)
-     * Also skipps hidden and unreadable files, since these are not accessible to the user and would just cause errors if tried to be scanned.
+     * Explicityly name checks for System Volume Information files to skip (not the most ideal, however, due to nature of the app and code is the most reliable solution for now.
+     * Explicitly name checks for Mac/Linux trash folders to skip, since these are not relevant to the user and would just add confusion if scanned.
+     * Also skips hidden and unreadable files, since these are not accessible to the user and would just cause errors if tried to be scanned.
      * @param file the file to check
      * @return true if the file should be skipped, false otherwise
      */
@@ -320,6 +321,12 @@ public class DriveScanner {
         if (name.equalsIgnoreCase("System Volume Information")) {
             return true;
         }
+
+        // Explicit Mac/Linux trash folders, catches Trashes-1000, Trash-0, etc...
+        if(name.equalsIgnoreCase(".Trash") || name.equalsIgnoreCase(".Trashes") || name.toLowerCase().startsWith(".trash-")){
+            return true;
+        }
+
         // Skip hidden files
         if (file.isHidden()) {
             return true;
